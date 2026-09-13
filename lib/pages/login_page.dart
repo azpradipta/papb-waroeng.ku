@@ -29,24 +29,18 @@ class _LoginPageState extends State<LoginPage> {
       backgroundColor: const Color(0xFFF4F4F5),
       body: SafeArea(
         child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 40, 16, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildHeader(primaryColor),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildLoginCard(primaryColor),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Versi 1.0.0 · © 2026 Waroeng.Ku',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 16),
+              _buildLoginCard(primaryColor),
+              const SizedBox(height: 20),
+              Text(
+                'Versi 1.0.0 · © 2026 Waroeng.Ku',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
               ),
             ],
           ),
@@ -58,13 +52,10 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildHeader(Color primaryColor) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
       decoration: BoxDecoration(
         color: primaryColor,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
-        ),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         children: [
@@ -74,7 +65,7 @@ class _LoginPageState extends State<LoginPage> {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.08),
