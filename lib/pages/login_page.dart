@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-const kBrandOrange = Color(0xFFFF7A29);
+import '../theme/app_colors.dart';
+import 'home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -23,19 +24,17 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = kBrandOrange;
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F5),
+      backgroundColor: kPageBackground,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 40, 16, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildHeader(primaryColor),
+              _buildHeader(),
               const SizedBox(height: 16),
-              _buildLoginCard(primaryColor),
+              _buildLoginCard(),
               const SizedBox(height: 20),
               Text(
                 'Versi 1.0.0 · © 2026 Waroeng.Ku',
@@ -49,12 +48,12 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildHeader(Color primaryColor) {
+  Widget _buildHeader() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
       decoration: BoxDecoration(
-        color: primaryColor,
+        color: kBrandOrange,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -95,7 +94,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildLoginCard(Color primaryColor) {
+  Widget _buildLoginCard() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -148,12 +147,14 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
           const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              'Akun dibuat oleh Pemilik warung',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                'Akun dibuat oleh Pemilik warung',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -161,12 +162,13 @@ class _LoginPageState extends State<LoginPage> {
             height: 52,
             child: ElevatedButton(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fitur login akan datang')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomePage()),
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
+                backgroundColor: kBrandOrange,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: 0,
