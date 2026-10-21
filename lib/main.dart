@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'pages/login_page.dart';
+import 'screens/login_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,10 +14,13 @@ class MyApp extends StatelessWidget {
       title: 'Waroeng.Ku',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF7A29)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFFF7A29),
+          primary: const Color(0xFFFF7A29),
+        ),
         useMaterial3: true,
       ),
-      home: const LoginPage(),
+      home: const LoginScreen(),
     );
   }
 }
