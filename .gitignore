@@ -33,6 +33,9 @@ migrate_working_dir/
 .pub/
 /build/
 
+# Local Supabase configuration
+/.env
+
 # Symbolication related
 app.*.symbols
 

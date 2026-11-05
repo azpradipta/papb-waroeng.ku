@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data.dart';
+import '../services/product_service.dart';
+import '../services/product_service_scope.dart';
 
 class PembayaranScreen extends StatefulWidget {
   final Map<Produk, int> keranjang;
@@ -19,12 +21,39 @@ class PembayaranScreen extends StatefulWidget {
 
 class _PembayaranScreenState extends State<PembayaranScreen> {
   int _uang = 0;
+  bool _sedangMemproses = false;
 
-  void _prosesPembayaran() {
+  Future<void> _prosesPembayaran() async {
     if (_uang < widget.total) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Uang yang diterima kurang')),
       );
+      return;
+    }
+
+    setState(() {
+      _sedangMemproses = true;
+    });
+
+    try {
+      final service = ProductServiceScope.of(context);
+      final produkTerbaru = await service.decreaseProductStocks(
+        widget.keranjang,
+      );
+      if (!mounted) {
+        return;
+      }
+      _perbaruiStokLokal(produkTerbaru);
+    } on ProductApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+      setState(() {
+        _sedangMemproses = false;
+      });
       return;
     }
 
@@ -44,8 +73,6 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
         ),
       );
       totalLaba += laba;
-      // Stok berkurang sesuai jumlah yang terjual.
-      produk.stok -= jumlah;
     }
 
     int kembalian = _uang - widget.total;
@@ -88,6 +115,17 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
     );
   }
 
+  void _perbaruiStokLokal(List<Produk> produkTerbaru) {
+    for (final terbaru in produkTerbaru) {
+      for (final produk in widget.keranjang.keys) {
+        if (produk.id == terbaru.id) {
+          produk.salinDari(terbaru);
+          break;
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -126,8 +164,10 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
               width: double.infinity,
               height: 50,
               child: FilledButton(
-                onPressed: _prosesPembayaran,
-                child: const Text('Proses Pembayaran'),
+                onPressed: _sedangMemproses ? null : _prosesPembayaran,
+                child: Text(
+                  _sedangMemproses ? 'Memproses...' : 'Proses Pembayaran',
+                ),
               ),
             ),
           ],

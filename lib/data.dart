@@ -1,20 +1,83 @@
-// Data hanya disimpan di List (memori HP), belum ke database.
-// Karena itu semua data hilang saat aplikasi ditutup.
+// Produk disimpan permanen di Supabase. List di bawah menjadi cache agar
+// halaman-halaman lama tetap dapat berbagi data produk yang sama.
+// Transaksi masih disimpan di memori dan hilang saat aplikasi ditutup.
 
 class Produk {
+  int? id;
   String nama;
   int hargaModal;
   int hargaJual;
   int stok;
   String satuan;
+  DateTime? dibuatPada;
 
   Produk({
+    this.id,
     required this.nama,
     required this.hargaModal,
     required this.hargaJual,
     required this.stok,
     required this.satuan,
+    this.dibuatPada,
   });
+
+  factory Produk.fromMap(Map<String, dynamic> map) {
+    return Produk(
+      id: _angkaDariMap(map['id'], 'id'),
+      nama: map['name'] as String,
+      hargaModal: _angkaDariMap(map['cost_price'], 'cost_price')!,
+      hargaJual: _angkaDariMap(map['selling_price'], 'selling_price')!,
+      stok: _angkaDariMap(map['stock'], 'stock')!,
+      satuan: map['unit'] as String,
+      dibuatPada: map['created_at'] == null
+          ? null
+          : DateTime.parse(map['created_at'] as String),
+    );
+  }
+
+  Map<String, dynamic> toInsertMap() {
+    return {
+      'name': nama,
+      'cost_price': hargaModal,
+      'selling_price': hargaJual,
+      'stock': stok,
+      'unit': satuan,
+    };
+  }
+
+  Map<String, dynamic> toUpdateMap() {
+    return {
+      'name': nama,
+      'cost_price': hargaModal,
+      'selling_price': hargaJual,
+      'stock': stok,
+      'unit': satuan,
+    };
+  }
+
+  void salinDari(Produk produk) {
+    id = produk.id;
+    nama = produk.nama;
+    hargaModal = produk.hargaModal;
+    hargaJual = produk.hargaJual;
+    stok = produk.stok;
+    satuan = produk.satuan;
+    dibuatPada = produk.dibuatPada;
+  }
+
+  static int? _angkaDariMap(Object? nilai, String namaKolom) {
+    if (nilai == null) {
+      return null;
+    }
+    if (nilai is int) {
+      return nilai;
+    }
+    if (nilai is num) {
+      return nilai.toInt();
+    }
+    return int.tryParse(nilai.toString()) ??
+        (throw FormatException('Kolom $namaKolom bukan angka.'));
+  }
 }
 
 // Nama dan harga disalin saat transaksi, supaya riwayat tidak berubah

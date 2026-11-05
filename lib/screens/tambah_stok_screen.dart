@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data.dart';
+import '../services/product_service.dart';
+import '../services/product_service_scope.dart';
 
 class TambahStokScreen extends StatefulWidget {
   final Produk produk;
@@ -12,8 +14,9 @@ class TambahStokScreen extends StatefulWidget {
 
 class _TambahStokScreenState extends State<TambahStokScreen> {
   String _jumlah = '';
+  bool _sedangMenyimpan = false;
 
-  void _simpan() {
+  Future<void> _simpan() async {
     int? jumlah = int.tryParse(_jumlah);
     if (jumlah == null || jumlah <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -21,8 +24,29 @@ class _TambahStokScreenState extends State<TambahStokScreen> {
       );
       return;
     }
-    widget.produk.stok += jumlah;
-    Navigator.pop(context);
+    setState(() {
+      _sedangMenyimpan = true;
+    });
+
+    try {
+      final service = ProductServiceScope.of(context);
+      final hasil = await service.addProductStock(widget.produk, jumlah);
+      widget.produk.salinDari(hasil);
+      if (!mounted) {
+        return;
+      }
+      Navigator.pop(context);
+    } on ProductApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+      setState(() {
+        _sedangMenyimpan = false;
+      });
+    }
   }
 
   @override
@@ -59,8 +83,8 @@ class _TambahStokScreenState extends State<TambahStokScreen> {
               width: double.infinity,
               height: 50,
               child: FilledButton(
-                onPressed: _simpan,
-                child: const Text('Simpan'),
+                onPressed: _sedangMenyimpan ? null : _simpan,
+                child: Text(_sedangMenyimpan ? 'Menyimpan...' : 'Simpan'),
               ),
             ),
           ],

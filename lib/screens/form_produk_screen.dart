@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data.dart';
+import '../services/product_service.dart';
+import '../services/product_service_scope.dart';
 
 // Dipakai untuk Tambah Produk dan Edit Produk.
 // Kalau produk null berarti tambah, kalau ada isinya berarti edit.
@@ -18,6 +20,7 @@ class _FormProdukScreenState extends State<FormProdukScreen> {
   String _hargaJual = '';
   String _stok = '';
   String _satuan = '';
+  bool _sedangMenyimpan = false;
 
   @override
   void initState() {
@@ -32,7 +35,7 @@ class _FormProdukScreenState extends State<FormProdukScreen> {
     }
   }
 
-  void _simpan() {
+  Future<void> _simpan() async {
     String nama = _nama.trim();
     String satuan = _satuan.trim();
     int? hargaModal = int.tryParse(_hargaModal);
@@ -53,25 +56,45 @@ class _FormProdukScreenState extends State<FormProdukScreen> {
       return;
     }
 
-    Produk? produk = widget.produk;
-    if (produk == null) {
-      daftarProduk.add(
-        Produk(
-          nama: nama,
-          hargaModal: hargaModal,
-          hargaJual: hargaJual,
-          stok: stok,
-          satuan: satuan,
-        ),
-      );
-    } else {
-      produk.nama = nama;
-      produk.hargaModal = hargaModal;
-      produk.hargaJual = hargaJual;
-      produk.stok = stok;
-      produk.satuan = satuan;
+    setState(() {
+      _sedangMenyimpan = true;
+    });
+
+    final produkLama = widget.produk;
+    final produkBaru = Produk(
+      id: produkLama?.id,
+      nama: nama,
+      hargaModal: hargaModal,
+      hargaJual: hargaJual,
+      stok: stok,
+      satuan: satuan,
+      dibuatPada: produkLama?.dibuatPada,
+    );
+
+    try {
+      final service = ProductServiceScope.of(context);
+      if (produkLama == null) {
+        final hasil = await service.createProduct(produkBaru);
+        daftarProduk.add(hasil);
+      } else {
+        final hasil = await service.updateProduct(produkBaru);
+        produkLama.salinDari(hasil);
+      }
+      if (!mounted) {
+        return;
+      }
+      Navigator.pop(context);
+    } on ProductApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+      setState(() {
+        _sedangMenyimpan = false;
+      });
     }
-    Navigator.pop(context);
   }
 
   @override
@@ -137,8 +160,8 @@ class _FormProdukScreenState extends State<FormProdukScreen> {
               width: double.infinity,
               height: 50,
               child: FilledButton(
-                onPressed: _simpan,
-                child: const Text('Simpan'),
+                onPressed: _sedangMenyimpan ? null : _simpan,
+                child: Text(_sedangMenyimpan ? 'Menyimpan...' : 'Simpan'),
               ),
             ),
           ],
