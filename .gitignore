@@ -32,9 +32,17 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+/.tools/
+/android/.kotlin/
 
 # Local Supabase configuration
 /.env
+/.env.*
+!/.env.example
+**/node_modules/
+/supabase/.temp/
+/supabase/.branches/
+/supabase/functions/.env
 
 # Symbolication related
 app.*.symbols

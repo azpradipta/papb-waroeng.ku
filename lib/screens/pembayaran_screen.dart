@@ -1,173 +1,159 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:uuid/uuid.dart';
 import '../data.dart';
-import '../services/product_service.dart';
-import '../services/product_service_scope.dart';
+import '../services/api_exception.dart';
+import '../services/app_services.dart';
+import 'detail_transaksi_screen.dart';
 
 class PembayaranScreen extends StatefulWidget {
   final Map<Produk, int> keranjang;
   final int total;
-  final String kasir;
-
   const PembayaranScreen({
     super.key,
     required this.keranjang,
     required this.total,
-    required this.kasir,
   });
-
   @override
   State<PembayaranScreen> createState() => _PembayaranScreenState();
 }
 
 class _PembayaranScreenState extends State<PembayaranScreen> {
-  int _uang = 0;
-  bool _sedangMemproses = false;
+  // ID ini tetap sama saat retry: backend hanya membuat satu nota.
+  final _requestId = const Uuid().v4();
+  final _cash = TextEditingController();
+  bool _busy = false;
+  String? _error;
 
-  Future<void> _prosesPembayaran() async {
-    if (_uang < widget.total) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Uang yang diterima kurang')),
-      );
-      return;
-    }
-
-    setState(() {
-      _sedangMemproses = true;
-    });
-
-    try {
-      final service = ProductServiceScope.of(context);
-      final produkTerbaru = await service.decreaseProductStocks(
-        widget.keranjang,
-      );
-      if (!mounted) {
-        return;
-      }
-      _perbaruiStokLokal(produkTerbaru);
-    } on ProductApiException catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
-      setState(() {
-        _sedangMemproses = false;
-      });
-      return;
-    }
-
-    List<ItemTransaksi> items = [];
-    int totalLaba = 0;
-    for (Produk produk in widget.keranjang.keys) {
-      int jumlah = widget.keranjang[produk]!;
-      int laba = (produk.hargaJual - produk.hargaModal) * jumlah;
-      items.add(
-        ItemTransaksi(
-          namaProduk: produk.nama,
-          hargaModal: produk.hargaModal,
-          hargaJual: produk.hargaJual,
-          jumlah: jumlah,
-          subtotal: produk.hargaJual * jumlah,
-          laba: laba,
-        ),
-      );
-      totalLaba += laba;
-    }
-
-    int kembalian = _uang - widget.total;
-    String nomorNota =
-        'TRX-${(daftarTransaksi.length + 1).toString().padLeft(3, '0')}';
-    daftarTransaksi.add(
-      Transaksi(
-        nomorNota: nomorNota,
-        tanggal: DateTime.now(),
-        kasir: widget.kasir,
-        items: items,
-        totalHarga: widget.total,
-        totalLaba: totalLaba,
-        bayar: _uang,
-        kembalian: kembalian,
-      ),
-    );
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Pembayaran Berhasil'),
-        content: Text(
-          'No. Nota: $nomorNota\n'
-          'Total: ${rupiah(widget.total)}\n'
-          'Bayar: ${rupiah(_uang)}\n'
-          'Kembalian: ${rupiah(kembalian)}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              Navigator.pop(context, true);
-            },
-            child: const Text('Selesai'),
-          ),
-        ],
-      ),
-    );
+  @override
+  void dispose() {
+    _cash.dispose();
+    super.dispose();
   }
 
-  void _perbaruiStokLokal(List<Produk> produkTerbaru) {
-    for (final terbaru in produkTerbaru) {
-      for (final produk in widget.keranjang.keys) {
-        if (produk.id == terbaru.id) {
-          produk.salinDari(terbaru);
-          break;
-        }
+  Future<void> _pay() async {
+    if (_busy) return;
+    final cash = int.tryParse(_cash.text);
+    if (cash == null || cash < widget.total || cash > 2147483647) {
+      setState(
+        () => _error =
+            'Isi uang pembayaran yang cukup, maksimal Rp 2.147.483.647.',
+      );
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final transaction = await AppServices.of(context).transactions.checkout(
+        requestId: _requestId,
+        items: widget.keranjang,
+        cash: cash,
+        expectedTotal: widget.total,
+      );
+      if (!mounted) return;
+      final viewReceipt = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Pembayaran Berhasil'),
+          content: Text(
+            'No. Nota: ${transaction.nomorNota}\n'
+            'Total: ${rupiah(transaction.totalHarga)}\n'
+            'Bayar: ${rupiah(transaction.bayar)}\n'
+            'Kembalian: ${rupiah(transaction.kembalian)}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Lihat Nota'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Selesai'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (viewReceipt == true) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DetailTransaksiScreen(transaksi: transaction),
+          ),
+        );
+      }
+      if (mounted) Navigator.pop(context, true);
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = error.message;
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Pembayaran')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+    final cash = int.tryParse(_cash.text) ?? 0;
+    return PopScope(
+      canPop: !_busy,
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Pembayaran')),
+        body: ListView(
+          padding: const EdgeInsets.all(24),
           children: [
-            for (Produk produk in widget.keranjang.keys)
-              _baris(
-                '${produk.nama} x ${widget.keranjang[produk]}',
-                rupiah(produk.hargaJual * widget.keranjang[produk]!),
+            for (final item in widget.keranjang.entries)
+              _row(
+                '${item.key.nama} x ${item.value}',
+                rupiah(item.key.hargaJual * item.value),
               ),
             const Divider(),
-            _baris('Total', rupiah(widget.total)),
-            const SizedBox(height: 16),
+            _row('Total', rupiah(widget.total)),
+            const SizedBox(height: 20),
             TextField(
+              key: const Key('cash-paid'),
+              controller: _cash,
+              enabled: !_busy,
               keyboardType: TextInputType.number,
-              onChanged: (value) {
-                setState(() {
-                  _uang = int.tryParse(value) ?? 0;
-                });
-              },
-              decoration: const InputDecoration(
-                labelText: 'Uang Diterima',
-                border: OutlineInputBorder(),
-              ),
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              onChanged: (_) => setState(() => _error = null),
+              decoration: const InputDecoration(labelText: 'Uang Diterima'),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final amount in [widget.total, 20000, 50000, 100000])
+                  ActionChip(
+                    label: Text(
+                      amount == widget.total ? 'Uang Pas' : rupiah(amount),
+                    ),
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() => _cash.text = amount.toString()),
+                  ),
+              ],
             ),
             const SizedBox(height: 16),
-            _baris(
-              'Kembalian',
-              _uang >= widget.total ? rupiah(_uang - widget.total) : '-',
+            _row(
+              cash >= widget.total ? 'Kembalian' : 'Kekurangan',
+              rupiah((cash - widget.total).abs()),
             ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: FilledButton(
-                onPressed: _sedangMemproses ? null : _prosesPembayaran,
-                child: Text(
-                  _sedangMemproses ? 'Memproses...' : 'Proses Pembayaran',
-                ),
+            FilledButton(
+              onPressed: _busy ? null : _pay,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(_busy ? 'Memproses...' : 'Proses Pembayaran'),
               ),
             ),
           ],
@@ -176,16 +162,14 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
     );
   }
 
-  Widget _baris(String label, String nilai) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Expanded(child: Text(label)),
-          const SizedBox(width: 8),
-          Text(nilai, style: const TextStyle(fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
+  Widget _row(String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      children: [
+        Expanded(child: Text(label)),
+        const SizedBox(width: 8),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ],
+    ),
+  );
 }

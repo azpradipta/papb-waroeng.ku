@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data.dart';
-import '../services/product_service.dart';
-import '../services/product_service_scope.dart';
+import '../services/api_exception.dart';
+import '../services/app_services.dart';
 
 // Dipakai untuk Tambah Produk dan Edit Produk.
 // Kalau produk null berarti tambah, kalau ada isinya berarti edit.
@@ -36,6 +36,7 @@ class _FormProdukScreenState extends State<FormProdukScreen> {
   }
 
   Future<void> _simpan() async {
+    if (_sedangMenyimpan) return;
     String nama = _nama.trim();
     String satuan = _satuan.trim();
     int? hargaModal = int.tryParse(_hargaModal);
@@ -49,7 +50,12 @@ class _FormProdukScreenState extends State<FormProdukScreen> {
         stok == null ||
         hargaModal < 0 ||
         hargaJual < 0 ||
-        stok < 0) {
+        stok < 0 ||
+        nama.length > 100 ||
+        satuan.length > 20 ||
+        hargaModal > 2147483647 ||
+        hargaJual > 2147483647 ||
+        stok > 2147483647) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Semua data harus diisi dengan benar')),
       );
@@ -72,10 +78,9 @@ class _FormProdukScreenState extends State<FormProdukScreen> {
     );
 
     try {
-      final service = ProductServiceScope.of(context);
+      final service = AppServices.of(context).products;
       if (produkLama == null) {
-        final hasil = await service.createProduct(produkBaru);
-        daftarProduk.add(hasil);
+        await service.createProduct(produkBaru);
       } else {
         final hasil = await service.updateProduct(produkBaru);
         produkLama.salinDari(hasil);
@@ -84,7 +89,7 @@ class _FormProdukScreenState extends State<FormProdukScreen> {
         return;
       }
       Navigator.pop(context);
-    } on ProductApiException catch (error) {
+    } on ApiException catch (error) {
       if (!mounted) {
         return;
       }
@@ -101,70 +106,81 @@ class _FormProdukScreenState extends State<FormProdukScreen> {
   Widget build(BuildContext context) {
     String judul = widget.produk == null ? 'Tambah Produk' : 'Edit Produk';
 
-    return Scaffold(
-      appBar: AppBar(title: Text(judul)),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            TextFormField(
-              initialValue: _nama,
-              onChanged: (value) => _nama = value,
-              decoration: const InputDecoration(
-                labelText: 'Nama Produk',
-                border: OutlineInputBorder(),
+    return PopScope(
+      canPop: !_sedangMenyimpan,
+      child: Scaffold(
+        appBar: AppBar(title: Text(judul)),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              TextFormField(
+                initialValue: _nama,
+                enabled: !_sedangMenyimpan,
+                maxLength: 100,
+                onChanged: (value) => _nama = value,
+                decoration: const InputDecoration(
+                  labelText: 'Nama Produk',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              initialValue: _hargaModal,
-              keyboardType: TextInputType.number,
-              onChanged: (value) => _hargaModal = value,
-              decoration: const InputDecoration(
-                labelText: 'Harga Modal',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+              TextFormField(
+                initialValue: _hargaModal,
+                enabled: !_sedangMenyimpan,
+                keyboardType: TextInputType.number,
+                onChanged: (value) => _hargaModal = value,
+                decoration: const InputDecoration(
+                  labelText: 'Harga Modal',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              initialValue: _hargaJual,
-              keyboardType: TextInputType.number,
-              onChanged: (value) => _hargaJual = value,
-              decoration: const InputDecoration(
-                labelText: 'Harga Jual',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+              TextFormField(
+                initialValue: _hargaJual,
+                enabled: !_sedangMenyimpan,
+                keyboardType: TextInputType.number,
+                onChanged: (value) => _hargaJual = value,
+                decoration: const InputDecoration(
+                  labelText: 'Harga Jual',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              initialValue: _stok,
-              keyboardType: TextInputType.number,
-              onChanged: (value) => _stok = value,
-              decoration: const InputDecoration(
-                labelText: 'Stok',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+              if (widget.produk == null)
+                TextFormField(
+                  initialValue: _stok,
+                  enabled: !_sedangMenyimpan,
+                  keyboardType: TextInputType.number,
+                  onChanged: (value) => _stok = value,
+                  decoration: const InputDecoration(
+                    labelText: 'Stok',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              TextFormField(
+                initialValue: _satuan,
+                enabled: !_sedangMenyimpan,
+                maxLength: 20,
+                onChanged: (value) => _satuan = value,
+                decoration: const InputDecoration(
+                  labelText: 'Satuan',
+                  hintText: 'pcs, bungkus, botol',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              initialValue: _satuan,
-              onChanged: (value) => _satuan = value,
-              decoration: const InputDecoration(
-                labelText: 'Satuan',
-                hintText: 'pcs, bungkus, botol',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: FilledButton(
+                  onPressed: _sedangMenyimpan ? null : _simpan,
+                  child: Text(_sedangMenyimpan ? 'Menyimpan...' : 'Simpan'),
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: FilledButton(
-                onPressed: _sedangMenyimpan ? null : _simpan,
-                child: Text(_sedangMenyimpan ? 'Menyimpan...' : 'Simpan'),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

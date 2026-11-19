@@ -1,146 +1,131 @@
 import 'package:flutter/material.dart';
 import '../data.dart';
-import '../services/product_service.dart';
-import '../services/product_service_scope.dart';
+import '../services/api_exception.dart';
+import '../services/app_services.dart';
 import 'kasir_screen.dart';
 import 'produk_screen.dart';
 import 'riwayat_screen.dart';
 import 'laporan_screen.dart';
+import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
-  final String role;
-
-  const MainScreen({super.key, required this.role});
-
+  final Profil profile;
+  const MainScreen({super.key, required this.profile});
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0;
-  bool _mulaiMemuatProduk = false;
-  bool _sedangMemuatProduk = true;
-  String? _pesanGagal;
+  int _index = 0;
+  bool _signingOut = false;
+  final Map<Produk, int> _cart = {};
+  late Profil _profile = widget.profile;
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_mulaiMemuatProduk) {
-      _mulaiMemuatProduk = true;
-      _ambilProduk();
-    }
-  }
-
-  Future<void> _ambilProduk({bool tampilkanLoading = false}) async {
-    if (tampilkanLoading) {
-      setState(() {
-        _sedangMemuatProduk = true;
-        _pesanGagal = null;
-      });
-    }
-
+  Future<void> _settings() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => SettingsScreen(profile: _profile),
+      ),
+    );
+    if (!mounted) return;
     try {
-      final service = ProductServiceScope.of(context);
-      final produk = await service.getProducts();
-      if (!mounted) {
-        return;
+      final profile = await AppServices.of(context).auth.getProfile();
+      if (mounted && profile != null) setState(() => _profile = profile);
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
       }
-      daftarProduk
-        ..clear()
-        ..addAll(produk);
-      setState(() {
-        _sedangMemuatProduk = false;
-        _pesanGagal = null;
-      });
-    } on ProductApiException catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _sedangMemuatProduk = false;
-        _pesanGagal = error.message;
-      });
     }
   }
 
-  void _onTabSelected(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Keluar dari akun?'),
+        content: const Text('Keranjang yang belum dibayar akan dikosongkan.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Keluar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _signingOut = true);
+    try {
+      await AppServices.of(context).auth.signOut();
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _signingOut = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_sedangMemuatProduk) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    if (_pesanGagal != null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Waroeng.Ku')),
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.cloud_off, size: 64, color: Colors.grey),
-                const SizedBox(height: 16),
-                Text(
-                  _pesanGagal!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () => _ambilProduk(tampilkanLoading: true),
-                  child: const Text('Coba Lagi'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Menu Laporan hanya muncul untuk Pemilik.
-    bool isPemilik = widget.role == 'Pemilik';
-
-    List<Widget> pages = [
-      KasirScreen(role: widget.role),
-      ProdukScreen(role: widget.role),
-      const RiwayatScreen(),
-      if (isPemilik) const LaporanScreen(),
-    ];
-
     return Scaffold(
-      // Halaman dibuat ulang setiap pindah menu, jadi data yang tampil selalu terbaru.
-      body: pages[_selectedIndex],
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_profile.namaToko, overflow: TextOverflow.ellipsis),
+            Text(
+              '${_profile.nama} • ${_profile.role}',
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Pengaturan',
+            onPressed: _settings,
+            icon: const Icon(Icons.settings_outlined),
+          ),
+          IconButton(
+            tooltip: 'Keluar',
+            onPressed: _signingOut ? null : _logout,
+            icon: const Icon(Icons.logout),
+          ),
+        ],
+      ),
+      body: switch (_index) {
+        0 => KasirScreen(keranjang: _cart),
+        1 => ProdukScreen(role: _profile.role),
+        2 => const RiwayatScreen(),
+        _ => const LaporanScreen(),
+      },
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: _onTabSelected,
-        backgroundColor: Colors.white,
-        indicatorColor: const Color(0xFFFF7A29).withValues(alpha: 0.2),
+        selectedIndex: _index,
+        onDestinationSelected: (value) => setState(() => _index = value),
         destinations: [
           const NavigationDestination(
-            icon: Icon(Icons.point_of_sale_outlined),
-            selectedIcon: Icon(Icons.point_of_sale, color: Color(0xFFFF7A29)),
+            icon: Icon(Icons.point_of_sale),
             label: 'Kasir',
           ),
           const NavigationDestination(
             icon: Icon(Icons.inventory_2_outlined),
-            selectedIcon: Icon(Icons.inventory_2, color: Color(0xFFFF7A29)),
             label: 'Produk',
           ),
           const NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long, color: Color(0xFFFF7A29)),
             label: 'Riwayat',
           ),
-          if (isPemilik)
+          if (_profile.isPemilik)
             const NavigationDestination(
-              icon: Icon(Icons.bar_chart_outlined),
-              selectedIcon: Icon(Icons.bar_chart, color: Color(0xFFFF7A29)),
+              icon: Icon(Icons.bar_chart),
               label: 'Laporan',
             ),
         ],

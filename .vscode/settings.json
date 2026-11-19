@@ -1,4 +1,7 @@
 {
+  "deno.enablePaths": ["./supabase/functions"],
+  "deno.path": "./.tools/deno/deno.exe",
+  "deno.cache": "./.tools/deno-cache",
   "java.import.gradle.enabled": false,
   "java.import.exclusions": [
     "**/android/**"

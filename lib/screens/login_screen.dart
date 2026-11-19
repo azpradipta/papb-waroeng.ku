@@ -1,155 +1,157 @@
 import 'package:flutter/material.dart';
-import 'main_screen.dart';
+import '../services/api_exception.dart';
+import '../services/app_services.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  bool _isObscure = true;
-  String _email = '';
-  String _password = '';
+  final _formKey = GlobalKey<FormState>();
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  bool _obscure = true;
+  bool _busy = false;
+  String? _error;
 
-  void _login() {
-    String email = _email.trim();
-    String role = '';
-    if (email == 'pemilik@waroengku.com' && _password == 'pemilik123') {
-      role = 'Pemilik';
-    } else if (email == 'kasir@waroengku.com' && _password == 'kasir123') {
-      role = 'Kasir';
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email atau password salah')),
-      );
-      return;
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (_busy || !_formKey.currentState!.validate()) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await AppServices.of(context).auth.signIn(_email.text, _password.text);
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => MainScreen(role: role)),
-    );
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.white,
+    body: SafeArea(
+      child: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: Column(
-            children: [
-              const SizedBox(height: 50),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Image.asset(
-                  'assets/icon/icon.png',
-                  width: 110,
-                  height: 110,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Waroeng.Ku',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFFFF7A29),
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Masuk dengan email dan password anda',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 15, color: Colors.grey),
-              ),
-              const SizedBox(height: 40),
-              Container(
-                height: 50,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextField(
-                        keyboardType: TextInputType.emailAddress,
-                        onChanged: (value) => _email = value,
-                        decoration: const InputDecoration(
-                          hintText: 'Email',
-                          hintStyle: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 14,
-                          ),
-                          border: InputBorder.none,
-                        ),
+          padding: const EdgeInsets.all(30),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Image.asset(
+                        'assets/icon/icon.png',
+                        width: 110,
+                        height: 110,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                height: 50,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextField(
-                        obscureText: _isObscure,
-                        onChanged: (value) => _password = value,
-                        decoration: const InputDecoration(
-                          hintText: 'Password',
-                          hintStyle: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 14,
-                          ),
-                          border: InputBorder.none,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isObscure = !_isObscure;
-                        });
-                      },
-                      child: Icon(
-                        _isObscure ? Icons.visibility_off : Icons.visibility,
-                        color: Colors.grey,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: FilledButton(
-                  onPressed: _login,
-                  child: const Text(
-                    'Masuk',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Waroeng.Ku',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFFF7A29),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Masuk dengan akun warung Anda',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                  TextFormField(
+                    key: const Key('email'),
+                    controller: _email,
+                    enabled: !_busy,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    autofillHints: const [AutofillHints.username],
+                    decoration: const InputDecoration(labelText: 'Email'),
+                    validator: (value) =>
+                        value == null || !value.trim().contains('@')
+                        ? 'Isi email yang benar.'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    key: const Key('password'),
+                    controller: _password,
+                    enabled: !_busy,
+                    obscureText: _obscure,
+                    autofillHints: const [AutofillHints.password],
+                    onFieldSubmitted: (_) => _login(),
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      suffixIcon: IconButton(
+                        tooltip: 'Tampilkan atau sembunyikan password',
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                        icon: Icon(
+                          _obscure ? Icons.visibility_off : Icons.visibility,
+                        ),
+                      ),
+                    ),
+                    validator: (value) =>
+                        value == null || value.isEmpty ? 'Isi password.' : null,
+                  ),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: _busy ? null : _login,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(_busy ? 'Memeriksa akun...' : 'Masuk'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (_) => const RegisterScreen(),
+                            ),
+                          ),
+                    child: const Text('Belum punya toko? Daftar Pemilik'),
+                  ),
+                  const Text(
+                    'Akun Kasir dibuat oleh Pemilik toko.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
               ),
-              const SizedBox(height: 40),
-            ],
+            ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }

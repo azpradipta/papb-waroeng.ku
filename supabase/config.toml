@@ -1,0 +1,5 @@
+project_id = "waroeng-ku"
+
+[functions.manage-cashier]
+# Handler memverifikasi JWT ke Auth server, lalu memeriksa peran/toko lewat RPC.
+verify_jwt = false
