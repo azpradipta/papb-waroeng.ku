@@ -19,8 +19,24 @@ async function addUser(id, email, metadata, app = {}) {
   await admin();
   await query('insert into auth.users(id,email,raw_user_meta_data,raw_app_meta_data) values($1,$2,$3,$4)', [id,email,metadata,app]);
 }
+async function addAdminUser(id, email, metadata, app) {
+  await admin();
+  await db.exec('begin');
+  try {
+    // Auth inserts provider metadata first, then updates custom app_metadata.
+    // https://github.com/supabase/auth/blob/v2.180.0/internal/api/admin.go#L380-L445
+    await query('insert into auth.users(id,email,raw_user_meta_data,raw_app_meta_data) values($1,$2,$3,$4)',
+      [id,email,metadata,{provider:'email',providers:['email']}]);
+    await query('update auth.users set raw_app_meta_data = raw_app_meta_data || $1 where id = $2', [app,id]);
+    await db.exec('commit');
+  } catch (error) {
+    await db.exec('rollback');
+    throw error;
+  }
+}
 const base = await readFile(new URL('../../supabase/migrations/202611170001_complete_shop.sql', import.meta.url), 'utf8');
 const migration = await readFile(new URL('../../supabase/migrations/202611180001_stores_and_accounts.sql', import.meta.url), 'utf8');
+const cashierTrigger = await readFile(new URL('../../supabase/migrations/202611200001_cashier_auth_trigger.sql', import.meta.url), 'utf8');
 try {
   await db.exec(`create role anon nologin; create role authenticated nologin;
     create schema auth;
@@ -40,6 +56,8 @@ try {
   await test('upgrade dan pengulangan migrasi mempertahankan toko, produk, nota, dan profil lama', async () => {
     await db.exec(migration);
     await db.exec(migration);
+    await db.exec(cashierTrigger);
+    await db.exec(cashierTrigger);
     assert.equal((await query('select count(*)::int n from stores'))[0].n,1);
     assert.equal((await query('select stock from products where id=$1',[product.id]))[0].stock,9);
     assert.equal((await query('select count(*)::int n from transactions'))[0].n,1);
@@ -57,16 +75,57 @@ try {
     assert.notEqual(profile.store_id,store);
     assert.equal((await query('select owner_id from stores where id=$1',[profile.store_id]))[0].owner_id,otherOwner);
   });
-  await test('pembuatan Kasir dengan app_metadata server menetapkan toko dan peran yang benar', async () => {
-    await addUser(newCashier,'new@example.com',{full_name:'Kasir Baru',role:'Pemilik',store_name:'Palsu'}, {wk_cashier_store_id:store});
+  await test('urutan INSERT lalu UPDATE Auth Admin membuat Kasir tanpa nama toko baru', async () => {
+    await addAdminUser(newCashier,'new@example.com',{full_name:'Kasir Baru'}, {wk_cashier_store_id:store});
     const row = (await query('select * from profiles where id=$1',[newCashier]))[0];
     assert.equal(row.role,'Kasir'); assert.equal(row.store_id,store);
     assert.equal((await query('select count(*)::int n from stores'))[0].n,2);
+    await user(newCashier);
+    assert.equal((await rpc('select get_my_profile() result')).role,'Kasir');
+    assert.equal((await rpc('select get_store() result')).id,store);
+    await admin();
+  });
+  await test('penanda Kasir dalam user_metadata tidak melewati kewajiban nama toko', async () => {
+    const id=randomUUID();
+    await assert.rejects(() => addUser(id,'forged@example.com',{
+      full_name:'Palsu',role:'Kasir',store_id:store,wk_cashier_store_id:store,
+      app_metadata:{wk_cashier_store_id:store},
+    }), /Nama toko/);
+    assert.equal((await query('select count(*)::int n from auth.users where id=$1',[id]))[0].n,0);
+    assert.equal((await query('select count(*)::int n from profiles where id=$1',[id]))[0].n,0);
+    assert.equal((await query('select count(*)::int n from stores'))[0].n,2);
+  });
+  await test('toko terpercaya tidak ditemukan membatalkan seluruh pembuatan akun Auth Admin', async () => {
+    const id=randomUUID();
+    await assert.rejects(() => addAdminUser(id,'missing-store@example.com',{full_name:'Salah'},
+      {wk_cashier_store_id:randomUUID()}), /Toko tujuan tidak tersedia/);
+    assert.equal((await query('select count(*)::int n from auth.users where id=$1',[id]))[0].n,0);
+    assert.equal((await query('select count(*)::int n from profiles where id=$1',[id]))[0].n,0);
+    assert.equal((await query('select count(*)::int n from stores'))[0].n,2);
+  });
+  await test('toko terpercaya bukan UUID membatalkan seluruh pembuatan akun Auth Admin', async () => {
+    const id=randomUUID();
+    await assert.rejects(() => addAdminUser(id,'bad-store@example.com',{full_name:'Salah'},
+      {wk_cashier_store_id:'bukan-uuid'}), /uuid|Toko tujuan/);
+    assert.equal((await query('select count(*)::int n from auth.users where id=$1',[id]))[0].n,0);
+    assert.equal((await query('select count(*)::int n from profiles where id=$1',[id]))[0].n,0);
   });
   await test('register tanpa nama toko membatalkan akun dan profil seluruhnya', async () => {
     const id=randomUUID();
     await assert.rejects(() => addUser(id,'bad@example.com',{full_name:'Salah'}), /Nama toko/);
     assert.equal((await query('select count(*)::int n from auth.users where id=$1',[id]))[0].n,0);
+    assert.equal((await query('select count(*)::int n from profiles where id=$1',[id]))[0].n,0);
+    assert.equal((await query('select count(*)::int n from stores'))[0].n,2);
+  });
+  await test('pengulangan perbaikan trigger tidak menggandakan atau mengubah profil yang sudah dibuat', async () => {
+    const before=await query('select * from profiles order by id');
+    await db.exec(cashierTrigger);
+    await db.exec(cashierTrigger);
+    assert.deepEqual(await query('select * from profiles order by id'),before);
+    assert.equal((await query('select count(*)::int n from stores'))[0].n,2);
+    const triggers=await query(`select tgdeferrable, tginitdeferred from pg_trigger
+      where tgrelid='auth.users'::regclass and tgname='on_auth_user_created'`);
+    assert.deepEqual(triggers,[{tgdeferrable:true,tginitdeferred:true}]);
   });
   await user(otherOwner);
   const foreign = await rpc("select create_product('Produk Toko Kedua',500,800,20,'pcs') result");
@@ -166,6 +225,7 @@ try {
       await fresh.exec(base);
       await fresh.exec("insert into products(name,cost_price,selling_price,stock,unit) values('Warisan',100,200,3,'pcs')");
       await fresh.exec(migration);
+      await fresh.exec(cashierTrigger);
       const id=randomUUID();
       await fresh.query('insert into auth.users(id,email,raw_user_meta_data) values($1,$2,$3)',
         [id,'fresh@example.com',{full_name:'Baru',store_name:'Toko Baru'}]);

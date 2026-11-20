@@ -7,6 +7,9 @@ Aplikasi menyediakan satu toko per Pemilik dan satu toko per akun, dengan banyak
 - Register mengirim nama, nama toko, email, dan password ke Supabase Auth. Confirm Email dimatikan pada konfigurasi project.
 - Flutter memakai flow implicit untuk signup yang langsung mendapatkan sesi tanpa konfirmasi email; ini ditetapkan pada inisialisasi Supabase dan diperiksa dalam tes kontrak Auth.
 - Trigger pembuatan pengguna membuat toko dan profil Pemilik dalam transaksi database yang sama. Nama toko kosong membatalkan seluruh pembuatan akun.
+- Trigger profil ditunda hingga akhir transaksi Auth dan membaca ulang metadata `auth.users`. Auth Admin memasukkan akun terlebih dahulu, lalu menulis `app_metadata` kustom; memakai snapshot INSERT akan salah menganggap Kasir sebagai Pemilik. Regresi ini diperbaiki oleh migrasi `202611200001_cashier_auth_trigger.sql` dan diuji dengan urutan INSERT lalu UPDATE dalam satu transaksi seperti Auth Admin.
+
+Urutan penulisan akun dan metadata tersebut mengikuti [implementasi resmi Auth Admin](https://github.com/supabase/auth/blob/v2.180.0/internal/api/admin.go#L380-L445). Trigger menggunakan `DEFERRABLE INITIALLY DEFERRED` agar pembentukan profil tetap atomik bersama akun Auth.
 - Form register tidak boleh menentukan toko lama. `user_metadata` tidak dipercaya untuk memilih peran/toko.
 - Pemilik membuat Kasir melalui `manage-cashier`. Fungsi memverifikasi token lewat Auth server, membaca `get_my_profile`, dan hanya mengizinkan Pemilik aktif.
 - Auth Admin membuat pengguna dengan `email_confirm: true` dan `app_metadata.wk_cashier_store_id`. Hanya metadata server ini yang membentuk profil Kasir pada toko yang ditetapkan.
@@ -54,7 +57,7 @@ ID retry bertahan selama layar pembayaran yang sama terbuka. Setelah aplikasi di
 
 ## Migrasi dan validasi
 
-Migrasi pertama adalah skema awal satu-warung. Migrasi kedua menambahkan toko dan mengganti fungsi dengan pembatasan toko. Migrasi pertama sengaja ditolak jika tabel toko sudah ada agar tidak menurunkan pembatasan akses. Produk, profil, dan nota lama dipertahankan. Data tanpa Pemilik disimpan terpisah sampai pengelola menghubungkannya secara eksplisit.
+Migrasi pertama adalah skema awal satu-warung. Migrasi kedua menambahkan toko dan mengganti fungsi dengan pembatasan toko. Migrasi ketiga memperbaiki waktu pembuatan profil pada transaksi Auth Admin tanpa mengubah akun/data yang sudah ada. Migrasi pertama sengaja ditolak jika tabel toko sudah ada agar tidak menurunkan pembatasan akses. Produk, profil, dan nota lama dipertahankan. Data tanpa Pemilik disimpan terpisah sampai pengelola menghubungkannya secara eksplisit.
 
 Tes mencakup transaksi awal, upgrade dan pengulangan migrasi, register, pembuatan Kasir, data antar toko, penonaktifan sesi, handler Auth Admin, kontrak Flutter, dan alur UI. Tes PGlite menggunakan satu koneksi; uji konkurensi multi-koneksi serta Auth nyata dilakukan di Supabase aktif.
 

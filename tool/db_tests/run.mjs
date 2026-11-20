@@ -27,6 +27,7 @@ async function test(name, action) {
 }
 const migration = await readFile(new URL('../../supabase/migrations/202611170001_complete_shop.sql', import.meta.url), 'utf8');
 const storesMigration = await readFile(new URL('../../supabase/migrations/202611180001_stores_and_accounts.sql', import.meta.url), 'utf8');
+const cashierTriggerMigration = await readFile(new URL('../../supabase/migrations/202611200001_cashier_auth_trigger.sql', import.meta.url), 'utf8');
 
 try {
   await db.exec(`
@@ -61,6 +62,7 @@ try {
   });
   // Seluruh pengujian bisnis berikut dijalankan pada fungsi versi toko terbaru.
   await db.exec(storesMigration);
+  await db.exec(cashierTriggerMigration);
   const store = (await query('select store_id from profiles where id=$1',[owner]))[0].store_id;
   await test('profil hanya terbaca oleh akun sendiri dan peran tidak dapat diedit', async () => {
     await user(cashier);

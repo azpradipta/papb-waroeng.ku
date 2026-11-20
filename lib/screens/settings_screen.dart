@@ -49,6 +49,15 @@ class SettingsScreen extends StatelessWidget {
             MaterialPageRoute<void>(builder: (_) => const PasswordScreen()),
           ),
         ),
+        ListTile(
+          leading: const Icon(Icons.description_outlined),
+          title: const Text('Lisensi Open Source'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => showLicensePage(
+            context: context,
+            applicationName: 'Waroeng.Ku',
+          ),
+        ),
       ],
     ),
   );

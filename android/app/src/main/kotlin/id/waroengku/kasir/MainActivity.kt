@@ -1,4 +1,4 @@
-package com.example.waroeng_ku
+package id.waroengku.kasir
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -17,14 +17,17 @@ Pengaturan Confirm Email yang dimatikan berlaku untuk akun baru. Akun uji lama y
 
 [Dokumentasi pengaturan Auth](https://supabase.com/docs/guides/auth/general-configuration).
 
-## 2. Jalankan dua migrasi SQL secara berurutan
+## 2. Jalankan migrasi SQL secara berurutan
 
-Buka **SQL Editor → New query**. Salin seluruh isi file pertama, jalankan, lalu buat query baru untuk file kedua:
+Buka **SQL Editor → New query**. Salin seluruh isi setiap file berikut, lalu jalankan satu per satu sesuai urutan:
 
 1. [202611170001_complete_shop.sql](../supabase/migrations/202611170001_complete_shop.sql): skema produk, transaksi, profil, dan fungsi penjualan dasar.
 2. [202611180001_stores_and_accounts.sql](../supabase/migrations/202611180001_stores_and_accounts.sql): toko, pendaftaran Pemilik, pengelolaan Kasir, dan pembatasan data per toko.
+3. [202611200001_cashier_auth_trigger.sql](../supabase/migrations/202611200001_cashier_auth_trigger.sql): perbaikan pembuatan Kasir agar trigger membaca metadata lengkap setelah transaksi Auth selesai.
 
-Jika migrasi pertama pernah dijalankan dan aplikasi sudah memakai skema dasarnya, cukup jalankan migrasi kedua. **Setelah migrasi kedua aktif, jangan jalankan migrasi pertama sendirian lagi** karena definisi fungsi versi lama belum membatasi toko. Untuk instalasi ulang dari awal, urutannya tetap pertama lalu kedua.
+Jika migrasi pertama dan kedua sudah dijalankan, **cukup jalankan file ketiga**. Jika baru migrasi pertama yang pernah dijalankan, lanjutkan file kedua lalu ketiga. **Setelah skema toko aktif, jangan jalankan migrasi pertama sendirian lagi** karena definisi fungsi versi lama belum membatasi toko. Untuk instalasi baru jalankan ketiganya berurutan. Setiap kali mengulang migrasi kedua, jalankan migrasi ketiga sesudahnya agar perbaikan trigger tetap aktif.
+
+Perbaikan ketiga diperlukan karena Auth Admin menulis `app_metadata` kustom setelah INSERT akun, dalam transaksi yang sama. Trigger lama membaca metadata terlalu awal sehingga Kasir dianggap pendaftar Pemilik dan gagal dengan **Nama toko wajib diisi, maksimal 100 karakter.** Trigger baru ditunda hingga akhir transaksi dan membaca baris Auth terbaru. Role/toko Kasir tetap berasal dari `app_metadata` yang ditulis backend, bukan metadata form yang dapat dikirim pengguna. Data, akun, dan transaksi yang sudah ada tidak dihapus; pembuatan Kasir yang gagal dapat dicoba ulang setelah SQL ini berhasil. Perubahan SQL ini tidak memerlukan redeploy Edge Function.
 
 Setelah berhasil, Table Editor menampilkan `stores`, `profiles`, `products`, `transactions`, dan `transaction_items`. RLS, trigger akun, dan fungsi backend diatur oleh migrasi. Jangan membuka policy semua data untuk anon/authenticated secara manual.
 
@@ -99,7 +102,7 @@ flutter pub get
 flutter run -d chrome --dart-define-from-file=.env
 ```
 
-Pemeriksaan backend bersifat read-only: mengecek Auth, pengaturan signup tanpa verifikasi, keberadaan RPC dengan akses anonim ditolak, dan fungsi `manage-cashier` yang meminta login. Hasil akhir yang diharapkan: **Preflight lulus**. Ini belum menguji pembuatan akun/penjualan sungguhan.
+Pemeriksaan backend bersifat read-only: mengecek Auth, pengaturan signup tanpa verifikasi, keberadaan RPC dengan akses anonim ditolak, dan fungsi `manage-cashier` yang meminta login. Hasil akhir yang diharapkan: **Preflight lulus**. Ini belum menguji pembuatan akun/penjualan sungguhan ataupun memastikan migrasi perbaikan trigger sudah diterapkan; tetap lakukan pengujian Tambah Kasir setelah menjalankan seluruh SQL.
 
 Jika konfigurasi `.env` berubah, hentikan proses Flutter dan jalankan ulang; hot reload tidak mengganti dart-define.
 
@@ -152,10 +155,11 @@ Keluar dan masuk kembali setelah pemindahan. SQL ini tidak menghapus produk, aku
 
 | Gejala | Yang diperiksa |
 | --- | --- |
-| RPC HTTP 404 / PGRST202 | Kedua migrasi sudah dijalankan pada project yang sama dengan `.env` |
+| RPC HTTP 404 / PGRST202 | Migrasi sudah dijalankan berurutan pada project yang sama dengan `.env` |
 | Daftar tidak langsung masuk / email_not_confirmed | Confirm Email dimatikan; akun lama mungkin masih perlu diaktifkan di Dashboard |
 | Pendaftaran belum dibuka | Allow new users to sign up diaktifkan |
 | Tambah/reset Kasir belum tersedia | Deploy `manage-cashier` dengan `index.ts`, `handler.mjs`, dan `deno.json`; periksa log fungsi |
+| Tambah Kasir gagal; log Auth berisi Nama toko wajib diisi | Jalankan `202611200001_cashier_auth_trigger.sql`, lalu coba Tambah Kasir lagi; metadata penanda Kasir harus dibaca setelah transaksi Auth selesai |
 | Invalid JWT dari gateway | Verify JWT fungsi dimatikan sesuai config; handler tetap memeriksa token sendiri |
 | Email sudah digunakan | Gunakan email lain; akun lama tidak ditimpa otomatis |
 | Toko lama belum dihubungkan | Ikuti bagian pemindahan data lama di atas |

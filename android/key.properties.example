@@ -1,0 +1,6 @@
+# Salin ke key.properties dan isi sesuai keystore pribadi. Jangan commit file aslinya.
+# storeFile dihitung dari folder android; gunakan / untuk pemisah folder.
+storeFile=keystore/upload-keystore.jks
+storePassword=ISI_PASSWORD_KEYSTORE
+keyAlias=upload
+keyPassword=ISI_PASSWORD_KEY

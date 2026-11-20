@@ -54,5 +54,5 @@ edge_ready = status == 401
 print('manage-cashier:', 'tersedia dan meminta login' if edge_ready else f'belum terverifikasi (HTTP {status})')
 ready = ready and edge_ready
 if not ready:
-    raise SystemExit('Backend belum lolos preflight. Ikuti docs/SETUP_SUPABASE.md: Auth, dua migrasi, dan Edge Function.')
+    raise SystemExit('Backend belum lolos preflight. Ikuti docs/SETUP_SUPABASE.md: Auth, migrasi SQL berurutan, dan Edge Function.')
 print('Preflight lulus. Login pengguna dan alur penjualan tetap perlu uji penerimaan.')

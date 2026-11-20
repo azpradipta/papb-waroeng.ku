@@ -4,7 +4,7 @@ Aplikasi kasir Flutter dengan Supabase Auth dan PostgreSQL. Pemilik mendaftar la
 
 ## Setup
 
-Ikuti [panduan setup Supabase](docs/SETUP_SUPABASE.md): aktifkan signup tanpa Confirm Email, jalankan dua migrasi berurutan, lalu deploy fungsi `manage-cashier`. Akun Pemilik dan Kasir tidak perlu dibuat melalui Dashboard.
+Ikuti [panduan setup Supabase](docs/SETUP_SUPABASE.md): aktifkan signup tanpa Confirm Email, jalankan seluruh migrasi sesuai urutan, lalu deploy fungsi `manage-cashier`. Akun Pemilik dan Kasir tidak perlu dibuat melalui Dashboard.
 
 Isi `.env` berdasarkan `.env.example`, lalu jalankan:
 
@@ -41,7 +41,7 @@ lib/
   services/     autentikasi, toko/pegawai, produk, transaksi, dokumen
   widgets/      field akun, filter periode, tampilan gagal muat
 supabase/
-  migrations/   skema dasar, dilanjutkan toko dan akun
+  migrations/   skema dasar, toko/akun, dan perbaikan trigger Auth
   functions/    fungsi server manage-cashier
   config.toml   konfigurasi fungsi
 docs/
@@ -74,9 +74,14 @@ Tes database memakai PostgreSQL WASM/PGlite dengan pengganti Auth, tidak tersamb
 
 ## Build
 
+Untuk APK Android yang dipasang saat presentasi, gunakan build release dengan keystore sendiri. Penjelasan komponen, langkah pemasangan HP, dan urutan demo ada di [BUILD_RELEASE.md](docs/BUILD_RELEASE.md). Asal gambar dan lisensi dicatat di [ASET_DAN_LISENSI.md](docs/ASET_DAN_LISENSI.md).
+
+APK dan AAB release sudah dibuat dan diverifikasi pada 20 November 2026. Lihat [bukti build release](docs/BUKTI_BUILD_RELEASE.md) untuk hasil, sidik sertifikat, dan pengujian yang masih memerlukan HP Android.
+
 ```powershell
 flutter build web --dart-define-from-file=.env
-flutter build apk --debug --dart-define-from-file=.env
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tool\build_release.ps1
+python tool\verify_release.py
 ```
 
 Cetak menggunakan dialog cetak perangkat dan dapat disimpan sebagai PDF. Integrasi Bluetooth ESC/POS khusus belum disertakan. Laba kotor belum memperhitungkan biaya operasional. Pemulihan password Pemilik yang sudah keluar dan permintaan penghapusan akun/data untuk rilis publik belum disertakan.
