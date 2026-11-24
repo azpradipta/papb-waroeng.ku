@@ -1,4 +1,4 @@
-package id.waroengku.kasir
+package com.waroengku.app
 
 import io.flutter.embedding.android.FlutterActivity
 

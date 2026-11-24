@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src https:; base-uri 'none'; form-action 'none'">
+  <title>Hapus Akun dan Data — Waroeng.Ku</title>
+  <link rel="stylesheet" href="../site.css">
+  <script src="../site-config.js" defer></script>
+  <script src="../delete-account.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="../">Waroeng.Ku</a><nav aria-label="Navigasi utama"><a href="../privacy/">Kebijakan privasi</a></nav></header>
+  <main>
+    <p class="eyebrow">Hak atas akun dan data</p>
+    <h1>Permintaan hapus akun Waroeng.Ku</h1>
+    <p class="intro">Ajukan penghapusan akun Anda sendiri tanpa perlu memasang aplikasi. Pengiriman permintaan belum langsung menghapus akun.</p>
+    <section class="card"><h2>Apa yang akan dihapus?</h2><ul><li><strong>Pemilik:</strong> akun Pemilik, seluruh data toko, produk, stok, transaksi, laporan, dan semua akun Kasir yang terkait. Simpan dokumen yang diperlukan dan beri tahu Kasir terlebih dahulu.</li><li><strong>Kasir:</strong> akun dan data pribadi sendiri. Catatan penjualan toko dipertahankan tanpa identitas Kasir, dengan nama “Kasir dihapus”.</li></ul><p>Pengelola meninjau dan memproses permintaan paling lambat <strong>30 hari kalender setelah verifikasi identitas yang diperlukan selesai</strong>. Baca <a href="../privacy/">kebijakan privasi</a> untuk rincian penyimpanan data.</p></section>
+
+    <section class="card" aria-labelledby="form-title">
+      <h2 id="form-title">Ajukan melalui akun Anda</h2>
+      <noscript><p class="notice">Aktifkan JavaScript untuk menggunakan formulir, atau gunakan email pengelola di bawah untuk meminta penghapusan.</p></noscript>
+      <p id="config-notice" class="notice" hidden>Formulir belum tersedia. Anda tetap dapat meminta penghapusan melalui email pengelola di bawah.</p>
+      <form id="login-form">
+        <p>Masuk hanya untuk memastikan permintaan berasal dari pemilik akun. Sesi halaman ini tidak disimpan setelah Anda keluar atau menutup halaman.</p>
+        <label for="email">Email akun</label>
+        <input id="email" name="email" type="email" autocomplete="username" required maxlength="254">
+        <label for="password">Password akun</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button id="login-button" type="submit" disabled>Lanjutkan ke Permintaan</button>
+      </form>
+      <section id="request-panel" hidden aria-labelledby="account-heading">
+        <h3 id="account-heading">Akun Anda</h3>
+        <p id="account-label"></p>
+        <p id="role-impact" class="notice"></p>
+        <form id="request-form">
+          <label class="checkbox-label" for="consent"><input id="consent" name="consent" type="checkbox" required><span>Saya memahami dampak penghapusan dan meminta penghapusan akun serta data terkait.</span></label>
+          <p>Permintaan akan dicatat untuk diproses oleh pengelola. Akun tetap tersedia sampai diproses.</p>
+          <button id="request-button" type="submit" disabled>Kirim Permintaan Hapus Akun</button>
+        </form>
+        <button id="logout-button" class="secondary" type="button">Keluar dari Halaman Ini</button>
+      </section>
+      <div id="result" role="status" aria-live="polite" tabindex="-1" hidden></div>
+      <p id="form-error" class="error" role="alert" hidden></p>
+    </section>
+
+    <section class="card" aria-labelledby="email-title"><h2 id="email-title">Tidak bisa login atau aplikasi sudah dihapus?</h2><p>Anda tetap dapat meminta penghapusan melalui <a id="support-link" href="mailto:11231013@student.itk.ac.id?subject=Permintaan%20hapus%20akun%20Waroeng.Ku">11231013@student.itk.ac.id</a>.</p><p>Cantumkan email akun Waroeng.Ku, nama toko jika ada, dan jelaskan bahwa Anda meminta penghapusan akun serta data. Pengelola dapat meminta konfirmasi identitas sebelum memprosesnya. <strong>Jangan mengirim password atau token login.</strong></p><p>Permintaan melalui email tidak mengharuskan Anda memasang ulang aplikasi.</p></section>
+  </main>
+  <footer><a href="../">Waroeng.Ku</a> · <a href="../privacy/">Kebijakan privasi</a></footer>
+</body>
+</html>

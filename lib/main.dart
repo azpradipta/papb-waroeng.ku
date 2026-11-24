@@ -207,7 +207,7 @@ class SupabaseSetupRequiredApp extends StatelessWidget {
               const Text(
                 'Isi SUPABASE_URL dan SUPABASE_PUBLISHABLE_KEY pada file .env. '
                 'Jalankan flutter run --dart-define-from-file=.env. '
-                'Petunjuk database dan akun tersedia di README.md.',
+                'Isi konfigurasi sesuai .env.example, lalu jalankan dengan --dart-define-from-file=.env.',
                 textAlign: TextAlign.center,
               ),
             ],

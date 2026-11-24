@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { PGlite } from '@electric-sql/pglite';
+import { testAccountDeletion } from './account_deletion.mjs';
 
 // PostgreSQL nyata dalam WASM, dengan auth.uid() dan auth.users pengganti
 // untuk tes terisolasi. Tidak membuka koneksi ke proyek Supabase pengguna.
@@ -28,10 +29,11 @@ async function test(name, action) {
 const migration = await readFile(new URL('../../supabase/migrations/202611170001_complete_shop.sql', import.meta.url), 'utf8');
 const storesMigration = await readFile(new URL('../../supabase/migrations/202611180001_stores_and_accounts.sql', import.meta.url), 'utf8');
 const cashierTriggerMigration = await readFile(new URL('../../supabase/migrations/202611200001_cashier_auth_trigger.sql', import.meta.url), 'utf8');
+const accountDeletionMigration = await readFile(new URL('../../supabase/migrations/202611200002_account_deletion_requests.sql', import.meta.url), 'utf8');
 
 try {
   await db.exec(`
-    create role anon nologin; create role authenticated nologin;
+    create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
     create schema auth;
     create table auth.users(id uuid primary key, email text, raw_user_meta_data jsonb default '{}', raw_app_meta_data jsonb default '{}');
     create function auth.uid() returns uuid language sql stable as $$
@@ -63,6 +65,7 @@ try {
   // Seluruh pengujian bisnis berikut dijalankan pada fungsi versi toko terbaru.
   await db.exec(storesMigration);
   await db.exec(cashierTriggerMigration);
+  await db.exec(accountDeletionMigration);
   const store = (await query('select store_id from profiles where id=$1',[owner]))[0].store_id;
   await test('profil hanya terbaca oleh akun sendiri dan peran tidak dapat diedit', async () => {
     await user(cashier);
@@ -245,6 +248,7 @@ try {
     assert.equal(new Set([...first,...next].map(r=>r.result.id)).size,expected);
     assert.ok([...first,...next].every(r=>r.result.cost_price===0));
   });
+  await testAccountDeletion({ db, query, rpc, user, admin, test, migration:accountDeletionMigration });
   console.log(`\n${count} database checks passed. PGlite memakai satu koneksi; uji konkurensi multi-koneksi terpisah tetap diperlukan pada Supabase.`);
 } finally {
   await db.close();

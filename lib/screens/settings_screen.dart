@@ -6,6 +6,8 @@ import '../widgets/account_fields.dart';
 import '../widgets/load_error.dart';
 import 'cashiers_screen.dart';
 import 'password_screen.dart';
+import 'privacy_screen.dart';
+import 'account_deletion_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   final Profil profile;
@@ -50,13 +52,31 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
         ListTile(
+          leading: const Icon(Icons.privacy_tip_outlined),
+          title: const Text('Kebijakan Privasi'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute<void>(builder: (_) => const PrivacyScreen()),
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.person_remove_outlined),
+          title: const Text('Hapus Akun dan Data'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => AccountDeletionScreen(profile: profile),
+            ),
+          ),
+        ),
+        ListTile(
           leading: const Icon(Icons.description_outlined),
           title: const Text('Lisensi Open Source'),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () => showLicensePage(
-            context: context,
-            applicationName: 'Waroeng.Ku',
-          ),
+          onTap: () =>
+              showLicensePage(context: context, applicationName: 'Waroeng.Ku'),
         ),
       ],
     ),

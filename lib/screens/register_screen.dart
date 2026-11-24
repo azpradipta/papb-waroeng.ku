@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_exception.dart';
 import '../services/app_services.dart';
 import '../widgets/account_fields.dart';
+import 'privacy_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -124,6 +125,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Text(
                     _busy ? 'Membuat toko...' : 'Daftar dan Buka Toko',
                   ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const PrivacyScreen(),
+                    ),
+                  ),
+                  child: const Text('Kebijakan Privasi'),
                 ),
               ],
             ),

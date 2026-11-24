@@ -65,6 +65,40 @@ void main() {
   );
 
   test(
+    'permintaan hapus akun memakai identitas sesi dan persetujuan eksplisit',
+    () async {
+      var submitted = false;
+      final row = {
+        'id': 'deletion-1',
+        'status': 'pending',
+        'requested_at': '2026-11-20T00:00:00Z',
+        'completed_at': null,
+      };
+      final auth = SupabaseAuthService(
+        client((request) async {
+          if (request.url.path ==
+              '/rest/v1/rpc/get_my_account_deletion_request') {
+            return http.Response(
+              jsonEncode(submitted ? row : null),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          expect(request.url.path, '/rest/v1/rpc/request_account_deletion');
+          expect(jsonDecode(request.body), {'p_confirm': true});
+          submitted = true;
+          return response(row);
+        }),
+      );
+      expect(await auth.getAccountDeletionRequest(), isNull);
+      final request = await auth.requestAccountDeletion();
+      expect(request.status, 'pending');
+      expect(request.id, 'deletion-1');
+      expect((await auth.getAccountDeletionRequest())!.id, request.id);
+    },
+  );
+
+  test(
     'daftar mengirim identitas toko tanpa memilih peran; profil dan password memakai sesi pengguna',
     () async {
       const id = '10000000-0000-4000-8000-000000000001';

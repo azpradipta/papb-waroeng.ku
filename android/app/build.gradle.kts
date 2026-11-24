@@ -16,7 +16,7 @@ if (keystorePropertiesFile.isFile) {
 // Debug tetap bisa dijalankan tanpa key pribadi; release wajib memakai key sendiri.
 if (gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }) {
     check(keystorePropertiesFile.isFile) {
-        "Signing release belum siap. Buat android/key.properties; lihat docs/BUILD_RELEASE.md."
+        "Signing release belum siap. Isi android/key.properties mengikuti android/key.properties.example dengan keystore release yang sama."
     }
     for (name in listOf("storeFile", "storePassword", "keyAlias", "keyPassword")) {
         check(!keystoreProperties.getProperty(name).isNullOrBlank()) {
@@ -29,8 +29,8 @@ if (gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = tr
 }
 
 android {
-    namespace = "id.waroengku.kasir"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "com.waroengku.app"
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -43,9 +43,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "id.waroengku.kasir"
+        applicationId = "com.waroengku.app"
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

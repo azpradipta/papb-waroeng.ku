@@ -2,6 +2,24 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data.dart';
 import 'api_exception.dart';
 
+class AccountDeletionRequest {
+  final String id;
+  final String status;
+  final DateTime requestedAt;
+  const AccountDeletionRequest({
+    required this.id,
+    required this.status,
+    required this.requestedAt,
+  });
+
+  factory AccountDeletionRequest.fromMap(Map<String, dynamic> map) =>
+      AccountDeletionRequest(
+        id: map['id'].toString(),
+        status: map['status'] as String,
+        requestedAt: DateTime.parse(map['requested_at'] as String),
+      );
+}
+
 abstract interface class AuthService {
   Stream<void> get changes;
   Future<Profil?> getProfile();
@@ -13,6 +31,8 @@ abstract interface class AuthService {
     required String password,
   });
   Future<void> changePassword(String password);
+  Future<AccountDeletionRequest?> getAccountDeletionRequest();
+  Future<AccountDeletionRequest> requestAccountDeletion();
   Future<void> signOut();
 }
 
@@ -74,6 +94,28 @@ class SupabaseAuthService implements AuthService {
     await client.auth.signInWithPassword(
       email: email.trim(),
       password: password,
+    );
+  });
+
+  @override
+  Future<AccountDeletionRequest?> getAccountDeletionRequest() =>
+      apiCall(() async {
+        final row = await client.rpc('get_my_account_deletion_request');
+        return row == null
+            ? null
+            : AccountDeletionRequest.fromMap(
+                Map<String, dynamic>.from(row as Map),
+              );
+      });
+
+  @override
+  Future<AccountDeletionRequest> requestAccountDeletion() => apiCall(() async {
+    final row = await client.rpc(
+      'request_account_deletion',
+      params: {'p_confirm': true},
+    );
+    return AccountDeletionRequest.fromMap(
+      Map<String, dynamic>.from(row as Map),
     );
   });
 

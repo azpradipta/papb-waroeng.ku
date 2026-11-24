@@ -6,10 +6,10 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 if (-not (Test-Path -LiteralPath (Join-Path $projectRoot '.env'))) {
-    throw 'Isi .env terlebih dahulu; lihat docs/SETUP_SUPABASE.md.'
+    throw 'Salin .env.example ke .env, lalu isi SUPABASE_URL dan SUPABASE_PUBLISHABLE_KEY.'
 }
 if (-not (Test-Path -LiteralPath (Join-Path $projectRoot 'android/key.properties'))) {
-    throw 'Pulihkan keystore dan android/key.properties; lihat docs/BUILD_RELEASE.md.'
+    throw 'Pulihkan keystore yang sama dan android/key.properties; gunakan android/key.properties.example sebagai format.'
 }
 
 $previousGradleCache = $env:GRADLE_USER_HOME

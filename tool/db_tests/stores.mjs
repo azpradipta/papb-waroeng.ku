@@ -213,7 +213,7 @@ try {
     assert.equal(first.id,retry.id); assert.equal(first.store_name,'Warung Baru'); assert.equal('total_profit' in first,false);
     await admin(); assert.equal((await query('select stock from products where id=$1',[product.id]))[0].stock,8);
   });
-  await test('data tanpa Pemilik tidak diwariskan ke pendaftar pertama dan SQL panduan memindahkannya secara eksplisit', async () => {
+  await test('data tanpa Pemilik tidak diwariskan ke pendaftar pertama dan SQL klaim memindahkannya secara eksplisit', async () => {
     const fresh = new PGlite();
     try {
       await fresh.exec(`create role anon nologin; create role authenticated nologin;
@@ -233,8 +233,8 @@ try {
       await fresh.exec('set role authenticated');
       assert.equal((await fresh.query('select get_products()')).rows.length,0);
       await fresh.exec('reset role');
-      const setup=await readFile(new URL('../../docs/SETUP_SUPABASE.md',import.meta.url),'utf8');
-      const claim=setup.match(/```sql\r?\n([\s\S]*?)```/)[1].replace('EMAIL_PEMILIK_YANG_DIPILIH','fresh@example.com');
+      const claim=(await readFile(new URL('./fixtures/claim_legacy_store.sql',import.meta.url),'utf8'))
+        .replace('EMAIL_PEMILIK_YANG_DIPILIH','fresh@example.com');
       await fresh.exec(claim);
       await fresh.exec(claim);
       assert.equal((await fresh.query('select count(*)::int n from stores')).rows[0].n,1);

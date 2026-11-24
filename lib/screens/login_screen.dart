@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_exception.dart';
 import '../services/app_services.dart';
 import 'register_screen.dart';
+import 'privacy_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -145,6 +146,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     'Akun Kasir dibuat oleh Pemilik toko.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => const PrivacyScreen(),
+                      ),
+                    ),
+                    child: const Text('Kebijakan Privasi'),
                   ),
                 ],
               ),

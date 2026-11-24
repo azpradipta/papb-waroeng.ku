@@ -43,16 +43,41 @@ direct_login = status == 200 and settings.get('mailer_autoconfirm') is True
 print('Pendaftaran publik:', 'aktif' if signup else 'belum aktif / belum terverifikasi')
 print('Login tanpa verifikasi email:', 'aktif' if direct_login else 'matikan Confirm Email di Dashboard')
 ready = ready and signup and direct_login
-for function in ('get_my_profile', 'get_store', 'list_cashiers', 'get_products', 'get_report', 'list_transactions'):
-    status, body = check('/rest/v1/rpc/' + function, {})
+public_checks = {
+    'get_my_profile': {},
+    'get_store': {},
+    'list_cashiers': {},
+    'get_products': {},
+    'get_report': {},
+    'list_transactions': {},
+    'get_my_account_deletion_request': {},
+    'request_account_deletion': {'p_confirm': False},
+}
+for function, payload in public_checks.items():
+    status, body = check('/rest/v1/rpc/' + function, payload)
     code = body.get('code')
     secured = status in (401, 403) and code == '42501'
     print(function + ':', 'tersedia dan akses anonim ditolak' if secured else f'belum terverifikasi (HTTP {status}, code {code})')
     ready = ready and secured
+# Konfirmasi false/UUID kosong membuat probe ini tidak menghapus atau mengantrekan data.
+empty_id = '00000000-0000-0000-0000-000000000000'
+operator_checks = {
+    'request_account_deletion_for_user': {'p_user_id': empty_id, 'p_confirm': False},
+    'preview_account_deletion': {'p_request_id': empty_id},
+    'prepare_account_deletion': {'p_request_id': empty_id, 'p_confirm': False},
+    'complete_account_deletion': {'p_request_id': empty_id},
+}
+for function, payload in operator_checks.items():
+    status, body = check('/rest/v1/rpc/' + function, payload)
+    # PostgREST dapat menyembunyikan fungsi yang tidak boleh dijalankan role ini.
+    denied = (status in (401, 403) and body.get('code') == '42501') or (
+        status == 404 and body.get('code') == 'PGRST202')
+    print(function + ':', 'tidak dapat diakses anonim' if denied else f'periksa izin (HTTP {status}, code {body.get("code")})')
+    ready = ready and denied
 status, _ = check('/functions/v1/manage-cashier', {})
 edge_ready = status == 401
 print('manage-cashier:', 'tersedia dan meminta login' if edge_ready else f'belum terverifikasi (HTTP {status})')
 ready = ready and edge_ready
 if not ready:
-    raise SystemExit('Backend belum lolos preflight. Ikuti docs/SETUP_SUPABASE.md: Auth, migrasi SQL berurutan, dan Edge Function.')
+    raise SystemExit('Backend belum lolos preflight. Aktifkan signup tanpa Confirm Email, jalankan supabase/migrations berurutan di SQL Editor, dan deploy manage-cashier dengan Verify JWT nonaktif.')
 print('Preflight lulus. Login pengguna dan alur penjualan tetap perlu uji penerimaan.')
