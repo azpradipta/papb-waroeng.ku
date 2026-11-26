@@ -1,7 +1,7 @@
 name: waroeng_ku
 description: "Aplikasi kasir dan pengelolaan warung dengan Supabase."
 publish_to: 'none'
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: ^3.8.1

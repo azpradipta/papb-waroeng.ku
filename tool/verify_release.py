@@ -18,7 +18,7 @@ import zlib
 
 
 PROJECT = Path(__file__).resolve().parent.parent
-APPLICATION_ID = "com.waroengku.app"
+APPLICATION_ID = "id.waroengku.kasir"
 APPLICATION_LABEL = "Waroeng.Ku"
 PAGE_SIZE = 16 * 1024
 NATIVE_64_BIT_ABIS = {"arm64-v8a", "x86_64"}

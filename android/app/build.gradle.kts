@@ -29,7 +29,7 @@ if (gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = tr
 }
 
 android {
-    namespace = "com.waroengku.app"
+    namespace = "id.waroengku.kasir"
     compileSdk = 36
     ndkVersion = "27.0.12077973"
 
@@ -43,7 +43,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.waroengku.app"
+        applicationId = "id.waroengku.kasir"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode
