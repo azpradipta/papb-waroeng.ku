@@ -16,6 +16,7 @@ class FakeAuth implements AuthService {
   Completer<void>? deletionPending;
   bool failDeletion = false;
   int deletionCalls = 0;
+  String? deletionPassword;
   @override
   Stream<void> get changes => events.stream;
   @override
@@ -68,9 +69,15 @@ class FakeAuth implements AuthService {
       deletionRequest;
 
   @override
-  Future<AccountDeletionRequest> requestAccountDeletion() async {
+  Future<AccountDeletionRequest> requestAccountDeletion({
+    required String password,
+  }) async {
     deletionCalls++;
+    deletionPassword = password;
     if (deletionPending != null) await deletionPending!.future;
+    if (password != 'valid123') {
+      throw const ApiException('Password salah. Periksa dan coba lagi.');
+    }
     if (failDeletion) throw const ApiException('Koneksi terputus. Coba lagi.');
     return deletionRequest ??= AccountDeletionRequest(
       id: 'deletion-1',

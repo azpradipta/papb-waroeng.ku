@@ -32,7 +32,9 @@ abstract interface class AuthService {
   });
   Future<void> changePassword(String password);
   Future<AccountDeletionRequest?> getAccountDeletionRequest();
-  Future<AccountDeletionRequest> requestAccountDeletion();
+  Future<AccountDeletionRequest> requestAccountDeletion({
+    required String password,
+  });
   Future<void> signOut();
 }
 
@@ -109,13 +111,18 @@ class SupabaseAuthService implements AuthService {
       });
 
   @override
-  Future<AccountDeletionRequest> requestAccountDeletion() => apiCall(() async {
-    final row = await client.rpc(
-      'request_account_deletion',
-      params: {'p_confirm': true},
+  Future<AccountDeletionRequest> requestAccountDeletion({
+    required String password,
+  }) => apiCall(() async {
+    if (password.isEmpty) {
+      throw const ApiException('Masukkan password akun Anda.');
+    }
+    final response = await client.functions.invoke(
+      'delete-account',
+      body: {'password': password, 'confirm': true},
     );
     return AccountDeletionRequest.fromMap(
-      Map<String, dynamic>.from(row as Map),
+      Map<String, dynamic>.from(response.data as Map),
     );
   });
 

@@ -3,3 +3,11 @@ project_id = "waroeng-ku"
 [functions.manage-cashier]
 # Handler memverifikasi JWT ke Auth server, lalu memeriksa peran/toko lewat RPC.
 verify_jwt = false
+
+[functions.delete-account]
+# JWT dan password diverifikasi ulang di handler.
+verify_jwt = false
+
+[functions.process-account-deletions]
+# Endpoint privat cron: wajib X-Worker-Secret; tidak memakai JWT pengguna.
+verify_jwt = false

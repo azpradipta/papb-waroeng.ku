@@ -65,7 +65,7 @@ void main() {
   );
 
   test(
-    'permintaan hapus akun memakai identitas sesi dan persetujuan eksplisit',
+    'hapus akun mengirim password ke fungsi server tanpa memilih target akun',
     () async {
       var submitted = false;
       final row = {
@@ -84,17 +84,86 @@ void main() {
               headers: {'content-type': 'application/json'},
             );
           }
-          expect(request.url.path, '/rest/v1/rpc/request_account_deletion');
-          expect(jsonDecode(request.body), {'p_confirm': true});
+          expect(request.url.path, '/functions/v1/delete-account');
+          expect(jsonDecode(request.body), {
+            'password': 'password123',
+            'confirm': true,
+          });
           submitted = true;
-          return response(row);
+          return http.Response(
+            jsonEncode(row),
+            202,
+            headers: {'content-type': 'application/json'},
+          );
         }),
       );
       expect(await auth.getAccountDeletionRequest(), isNull);
-      final request = await auth.requestAccountDeletion();
+      final request = await auth.requestAccountDeletion(
+        password: 'password123',
+      );
       expect(request.status, 'pending');
       expect(request.id, 'deletion-1');
       expect((await auth.getAccountDeletionRequest())!.id, request.id);
+    },
+  );
+
+  test(
+    'password salah dan jaringan gagal tidak menyatakan akun terhapus',
+    () async {
+      final wrongPassword = SupabaseAuthService(
+        client(
+          (request) async => http.Response(
+            jsonEncode({
+              'code': 'invalid_password',
+              'error': 'Invalid credentials',
+            }),
+            400,
+            headers: {'content-type': 'application/json'},
+          ),
+        ),
+      );
+      await expectLater(
+        wrongPassword.requestAccountDeletion(password: 'wrong123'),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.message,
+            'message',
+            'Password salah. Periksa dan coba lagi.',
+          ),
+        ),
+      );
+      final offline = SupabaseAuthService(
+        client((request) async => throw http.ClientException('offline')),
+      );
+      await expectLater(
+        offline.requestAccountDeletion(password: 'password123'),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.message,
+            'message',
+            'Tidak dapat terhubung. Periksa koneksi dan coba lagi.',
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'fungsi hapus akun belum tersedia tidak menampilkan error fitur kasir',
+    () async {
+      final auth = SupabaseAuthService(
+        client((request) async => http.Response('Not found', 404)),
+      );
+      await expectLater(
+        auth.requestAccountDeletion(password: 'password123'),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.message,
+            'message',
+            'Layanan akun belum tersedia. Coba lagi atau hubungi pengelola aplikasi.',
+          ),
+        ),
+      );
     },
   );
 

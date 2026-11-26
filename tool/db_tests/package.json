@@ -2,6 +2,6 @@
   "name": "waroeng-ku-db-tests",
   "private": true,
   "type": "module",
-  "scripts": { "test": "node run.mjs && node stores.mjs && node --test edge.test.mjs" },
+  "scripts": { "test": "node run.mjs && node stores.mjs && node --test edge.test.mjs && node automatic_deletion.mjs && node --test automatic_deletion_edge.test.mjs" },
   "devDependencies": { "@electric-sql/pglite": "0.3.14" }
 }

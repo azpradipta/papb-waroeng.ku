@@ -37,11 +37,17 @@ Future<T> apiCall<T>(Future<T> Function() action) async {
     throw const ApiException('Sesi tidak valid. Silakan masuk kembali.');
   } on FunctionException catch (error) {
     final data = error.details;
+    if (data is Map && data['code'] == 'invalid_password') {
+      throw const ApiException('Password salah. Periksa dan coba lagi.');
+    }
+    if (data is Map && data['code'] == 'invalid_session') {
+      throw const ApiException('Sesi tidak valid. Silakan masuk kembali.');
+    }
     if (data is Map && data['error'] is String) {
       throw ApiException(data['error'] as String);
     }
     throw const ApiException(
-      'Pengelolaan akun Kasir belum tersedia. Hubungi pengelola aplikasi.',
+      'Layanan akun belum tersedia. Coba lagi atau hubungi pengelola aplikasi.',
     );
   } on PostgrestException catch (error) {
     if (error.code == 'P0001') throw ApiException(error.message);

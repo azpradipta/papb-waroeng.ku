@@ -7,6 +7,7 @@
   const requestPanel = document.getElementById("request-panel");
   const email = document.getElementById("email");
   const password = document.getElementById("password");
+  const confirmationPassword = document.getElementById("confirmation-password");
   const consent = document.getElementById("consent");
   const loginButton = document.getElementById("login-button");
   const requestButton = document.getElementById("request-button");
@@ -38,13 +39,15 @@
 
   function updateButtons() {
     loginButton.disabled = busy || !ready;
-    requestButton.disabled = busy || !consent.checked || !accessToken || !!existingRequest;
+    requestButton.disabled = busy || !consent.checked || !confirmationPassword.value ||
+      !accessToken || (!!existingRequest && existingRequest.status !== "pending");
     logoutButton.disabled = busy;
     email.disabled = busy;
     password.disabled = busy;
+    confirmationPassword.disabled = busy;
     consent.disabled = busy;
     loginButton.textContent = busy ? "Memeriksa..." : "Lanjutkan ke Permintaan";
-    requestButton.textContent = busy ? "Mengirim..." : "Kirim Permintaan Hapus Akun";
+    requestButton.textContent = busy ? "Mengirim..." : "Konfirmasi Hapus Akun";
   }
 
   function showError(message) {
@@ -56,8 +59,10 @@
     if (error.name === "AbortError") return "Koneksi terlalu lama. Coba lagi atau hubungi pengelola melalui email.";
     if (error.status === 429) return "Terlalu banyak percobaan. Tunggu beberapa saat, lalu coba lagi.";
     if (error.code === "invalid_credentials") return "Email atau password salah. Periksa kembali data akun Anda.";
+    if (error.code === "invalid_password") return "Password salah. Masukkan kembali password akun Anda.";
     if (error.status === 401 || error.status === 403) return "Sesi tidak tersedia. Masuk kembali, atau hubungi pengelola melalui email.";
     if (error.code === "PGRST202" || error.code === "42P01") return "Formulir belum dapat menerima permintaan. Ajukan penghapusan melalui email pengelola di bawah.";
+    if (error.status === 404 || error.status === 503) return "Penghapusan otomatis belum tersedia. Coba lagi nanti atau ajukan penghapusan melalui email pengelola di bawah.";
     return "Permintaan belum berhasil. Periksa koneksi, coba lagi, atau hubungi pengelola melalui email.";
   }
 
@@ -82,7 +87,7 @@
       if (!response.ok) {
         const error = new Error("Permintaan tidak berhasil.");
         error.status = response.status;
-        error.code = data && (data.error_code || data.code);
+        error.code = data && (data.error_code || data.code || data.error);
         throw error;
       }
       return data;
@@ -95,6 +100,7 @@
     const token = accessToken;
     accessToken = null;
     password.value = "";
+    confirmationPassword.value = "";
     email.value = "";
     consent.checked = false;
     if (!token) return;
@@ -107,21 +113,27 @@
 
   function showRequest(request) {
     existingRequest = request;
-    requestForm.hidden = true;
+    const needsConfirmation = request.status === "pending" && !!accessToken;
+    requestForm.hidden = !needsConfirmation;
     result.replaceChildren();
     const heading = document.createElement("h3");
     heading.textContent = request.status === "completed" ? "Permintaan telah selesai diproses" :
-      request.status === "processing" ? "Penghapusan sedang diproses" : "Permintaan diterima dan menunggu diproses";
+      request.status === "processing" ? "Penghapusan sedang diproses" :
+        needsConfirmation ? "Permintaan sebelumnya menunggu konfirmasi" : "Permintaan diterima untuk diproses otomatis";
     const number = document.createElement("p");
     number.textContent = `Nomor permintaan: ${request.id}`;
     const detail = document.createElement("p");
-    detail.textContent = "Simpan nomor permintaan untuk menghubungi pengelola. Pengiriman permintaan belum langsung menghapus akun dan data.";
+    detail.textContent = needsConfirmation ?
+      "Konfirmasikan kembali menggunakan password untuk menjalankan penghapusan otomatis. Tidak perlu membuat permintaan lain." :
+      request.status === "completed" ? "Penghapusan telah selesai. Simpan nomor permintaan jika perlu menghubungi pengelola." :
+        "Server akan melanjutkan penghapusan secara otomatis. Simpan nomor permintaan untuk menghubungi pengelola jika proses mengalami gangguan. Halaman ini belum menyatakan data selesai dihapus.";
     result.append(heading, number, detail);
     result.hidden = false;
     result.focus();
   }
 
   consent.addEventListener("change", updateButtons);
+  confirmationPassword.addEventListener("input", updateButtons);
 
   loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -155,10 +167,13 @@
       requestPanel.hidden = false;
       existingRequest = null;
       requestForm.hidden = false;
+      logoutButton.hidden = false;
       if (previous) {
         showRequest(previous);
-        await endSession();
-        logoutButton.hidden = true;
+        if (previous.status !== "pending") {
+          await endSession();
+          logoutButton.hidden = true;
+        }
       }
     } catch (error) {
       await endSession();
@@ -172,16 +187,21 @@
 
   requestForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (busy || !accessToken || existingRequest || !consent.checked || !requestForm.reportValidity()) return;
-    if (!window.confirm("Kirim permintaan penghapusan akun dan data sesuai dampak yang dijelaskan? Pengelola akan memprosesnya; data belum langsung terhapus.")) return;
+    if (busy || !accessToken || (existingRequest && existingRequest.status !== "pending") ||
+      !confirmationPassword.value || !consent.checked || !requestForm.reportValidity()) return;
+    if (!window.confirm("Hapus akun dan data sesuai dampak yang dijelaskan? Setelah dikonfirmasi, penghapusan dijalankan otomatis dan tidak dapat dibatalkan.")) return;
     busy = true;
     showError("");
     updateButtons();
     try {
-      const request = await api("/rest/v1/rpc/request_account_deletion", {p_confirm: true});
-      if (!request || typeof request.id !== "string") throw new Error("Permintaan belum dapat dikonfirmasi.");
-      showRequest(request);
+      const request = await api("/functions/v1/delete-account", {
+        password: confirmationPassword.value, confirm: true
+      });
+      if (!request || typeof request.id !== "string" || !["pending", "processing", "completed"].includes(request.status)) {
+        throw new Error("Permintaan belum dapat dikonfirmasi.");
+      }
       await endSession();
+      showRequest(request);
       logoutButton.hidden = true;
     } catch (error) {
       if (error.status === 401 || error.status === 403) {
@@ -191,6 +211,7 @@
       }
       showError(describeError(error));
     } finally {
+      confirmationPassword.value = "";
       busy = false;
       updateButtons();
     }
@@ -215,6 +236,7 @@
     const token = accessToken;
     accessToken = null;
     password.value = "";
+    confirmationPassword.value = "";
     if (!token) return;
     fetch(`${config.supabaseUrl.replace(/\/$/, "")}/auth/v1/logout?scope=local`, {
       method: "POST",

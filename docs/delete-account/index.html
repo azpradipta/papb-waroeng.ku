@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src https:; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://qfnsijphjecbrhlwcsez.supabase.co; base-uri 'none'; form-action 'none'">
   <title>Hapus Akun dan Data — Waroeng.Ku</title>
   <link rel="stylesheet" href="../site.css">
   <script src="../site-config.js" defer></script>
@@ -15,8 +15,8 @@
   <main>
     <p class="eyebrow">Hak atas akun dan data</p>
     <h1>Permintaan hapus akun Waroeng.Ku</h1>
-    <p class="intro">Ajukan penghapusan akun Anda sendiri tanpa perlu memasang aplikasi. Pengiriman permintaan belum langsung menghapus akun.</p>
-    <section class="card"><h2>Apa yang akan dihapus?</h2><ul><li><strong>Pemilik:</strong> akun Pemilik, seluruh data toko, produk, stok, transaksi, laporan, dan semua akun Kasir yang terkait. Simpan dokumen yang diperlukan dan beri tahu Kasir terlebih dahulu.</li><li><strong>Kasir:</strong> akun dan data pribadi sendiri. Catatan penjualan toko dipertahankan tanpa identitas Kasir, dengan nama “Kasir dihapus”.</li></ul><p>Pengelola meninjau dan memproses permintaan paling lambat <strong>30 hari kalender setelah verifikasi identitas yang diperlukan selesai</strong>. Baca <a href="../privacy/">kebijakan privasi</a> untuk rincian penyimpanan data.</p></section>
+    <p class="intro">Hapus akun Anda sendiri tanpa perlu memasang aplikasi. Setelah password dan konfirmasi diperiksa, server memproses penghapusan secara otomatis.</p>
+    <section class="card"><h2>Apa yang akan dihapus?</h2><ul><li><strong>Pemilik:</strong> akun Pemilik, seluruh data toko, produk, stok, transaksi, laporan, dan semua akun Kasir yang terkait. Simpan dokumen yang diperlukan dan beri tahu Kasir terlebih dahulu.</li><li><strong>Kasir:</strong> akun dan data pribadi sendiri. Catatan penjualan toko dipertahankan tanpa identitas Kasir, dengan nama “Kasir dihapus”.</li></ul><p>Penghapusan yang sudah dikonfirmasi tidak dapat dibatalkan. Server melanjutkan proses otomatis; bila ada gangguan atau permintaan melalui email, pengelola membantu menyelesaikannya paling lambat <strong>30 hari kalender setelah verifikasi identitas yang diperlukan selesai</strong>. Baca <a href="../privacy/">kebijakan privasi</a> untuk rincian penyimpanan data.</p></section>
 
     <section class="card" aria-labelledby="form-title">
       <h2 id="form-title">Ajukan melalui akun Anda</h2>
@@ -35,9 +35,11 @@
         <p id="account-label"></p>
         <p id="role-impact" class="notice"></p>
         <form id="request-form">
+          <label for="confirmation-password">Masukkan kembali password akun</label>
+          <input id="confirmation-password" name="confirmation-password" type="password" autocomplete="current-password" required>
           <label class="checkbox-label" for="consent"><input id="consent" name="consent" type="checkbox" required><span>Saya memahami dampak penghapusan dan meminta penghapusan akun serta data terkait.</span></label>
-          <p>Permintaan akan dicatat untuk diproses oleh pengelola. Akun tetap tersedia sampai diproses.</p>
-          <button id="request-button" type="submit" disabled>Kirim Permintaan Hapus Akun</button>
+          <p>Setelah dikonfirmasi, server menjalankan penghapusan secara otomatis. Jangan lanjutkan jika masih ada dokumen yang perlu Anda simpan.</p>
+          <button id="request-button" type="submit" disabled>Konfirmasi Hapus Akun</button>
         </form>
         <button id="logout-button" class="secondary" type="button">Keluar dari Halaman Ini</button>
       </section>

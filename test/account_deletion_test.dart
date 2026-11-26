@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:waroeng_ku/main.dart';
 import 'package:waroeng_ku/screens/account_deletion_screen.dart';
+import 'package:waroeng_ku/screens/login_screen.dart';
 import 'package:waroeng_ku/services/auth_service.dart';
 import 'support/fakes.dart';
 
@@ -38,81 +39,154 @@ void main() {
     await tap(tester, 'Hapus Akun dan Data');
   }
 
-  testWidgets('permintaan membutuhkan persetujuan dan konfirmasi akhir', (
+  Future<void> password(WidgetTester tester, String value) async {
+    final field = find.descendant(
+      of: find.byKey(const Key('deletion-password')),
+      matching: find.byType(TextFormField),
+    );
+    await tester.ensureVisible(field);
+    await tester.enterText(field, value);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> consent(WidgetTester tester) async {
+    final checkbox = find.byKey(const Key('deletion-consent'));
+    await tester.ensureVisible(checkbox);
+    await tester.tap(checkbox);
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+    'password, persetujuan dan konfirmasi diperlukan lalu logout aman',
+    (tester) async {
+      await start(tester);
+      expect(
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNull,
+      );
+      expect(
+        find.textContaining('seluruh data toko Warung Uji'),
+        findsOneWidget,
+      );
+      await consent(tester);
+      expect(
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNull,
+      );
+      await password(tester, 'valid123');
+      expect(
+        tester
+            .widget<EditableText>(
+              find.descendant(
+                of: find.byKey(const Key('deletion-password')),
+                matching: find.byType(EditableText),
+              ),
+            )
+            .obscureText,
+        isTrue,
+      );
+      await tap(tester, 'Hapus Akun Permanen');
+      await tap(tester, 'Batal');
+      expect(auth.deletionCalls, 0);
+      await tap(tester, 'Hapus Akun Permanen');
+      await tap(tester, 'Ya, Hapus Permanen');
+      expect(auth.deletionCalls, 1);
+      expect(auth.deletionPassword, 'valid123');
+      expect(find.text('Permintaan diterima'), findsOneWidget);
+      expect(
+        find.textContaining('Akun belum dinyatakan selesai dihapus.'),
+        findsOneWidget,
+      );
+      expect(auth.profile, isNotNull);
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await tester
+          .state<NavigatorState>(find.byType(Navigator).first)
+          .maybePop();
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await tap(tester, 'Kembali ke Login');
+      expect(auth.profile, isNull);
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.byType(AccountDeletionScreen), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'password salah bisa diperbaiki tanpa logout atau permintaan baru',
+    (tester) async {
+      await start(tester, role: 'cashier');
+      expect(find.textContaining('Anda sebagai Kasir'), findsOneWidget);
+      expect(find.textContaining('seluruh data toko Warung Uji'), findsNothing);
+      await password(tester, 'wrong123');
+      await consent(tester);
+      await tap(tester, 'Hapus Akun Permanen');
+      await tap(tester, 'Ya, Hapus Permanen');
+      expect(
+        find.text('Password salah. Periksa dan coba lagi.'),
+        findsOneWidget,
+      );
+      expect(auth.deletionRequest, isNull);
+      expect(auth.profile!.role, 'Kasir');
+      await password(tester, 'valid123');
+      await tap(tester, 'Hapus Akun Permanen');
+      await tap(tester, 'Ya, Hapus Permanen');
+      expect(auth.deletionCalls, 2);
+      await tap(tester, 'Kembali ke Login');
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('kegagalan jaringan mempertahankan akun dan bisa dicoba ulang', (
     tester,
   ) async {
     await start(tester);
-    expect(
-      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
-      isNull,
-    );
-    expect(find.textContaining('data toko Warung Uji'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('deletion-consent')));
-    await tester.pumpAndSettle();
-    await tap(tester, 'Kirim Permintaan Hapus Akun');
-    await tap(tester, 'Batal');
-    expect(auth.deletionCalls, 0);
-    await tap(tester, 'Kirim Permintaan Hapus Akun');
-    await tap(tester, 'Ya, Kirim Permintaan');
-    expect(auth.deletionCalls, 1);
-    expect(
-      find.text('Permintaan diterima dan menunggu diproses.'),
-      findsOneWidget,
-    );
-    expect(auth.profile, isNotNull);
-    expect(find.text('Kirim Permintaan Hapus Akun'), findsNothing);
-  });
-
-  testWidgets('kegagalan permintaan bisa dicoba ulang tanpa menghapus akun', (
-    tester,
-  ) async {
-    await start(tester, role: 'cashier');
-    expect(find.textContaining('Anda sebagai Kasir'), findsOneWidget);
-    expect(find.textContaining('data toko Warung Uji'), findsNothing);
-    await tester.tap(find.byKey(const Key('deletion-consent')));
-    await tester.pumpAndSettle();
+    await password(tester, 'valid123');
+    await consent(tester);
     auth.failDeletion = true;
-    await tap(tester, 'Kirim Permintaan Hapus Akun');
-    await tap(tester, 'Ya, Kirim Permintaan');
+    await tap(tester, 'Hapus Akun Permanen');
+    await tap(tester, 'Ya, Hapus Permanen');
     expect(find.text('Koneksi terputus. Coba lagi.'), findsOneWidget);
     expect(auth.deletionRequest, isNull);
-    expect(auth.profile!.role, 'Kasir');
+    expect(auth.profile, isNotNull);
     auth.failDeletion = false;
-    await tap(tester, 'Kirim Permintaan Hapus Akun');
-    await tap(tester, 'Ya, Kirim Permintaan');
-    expect(auth.deletionCalls, 2);
-    expect(find.textContaining('Nomor permintaan:'), findsOneWidget);
+    await tap(tester, 'Hapus Akun Permanen');
+    await tap(tester, 'Ya, Hapus Permanen');
+    expect(find.text('Permintaan diterima'), findsOneWidget);
+    await tap(tester, 'Kembali ke Login');
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('permintaan tertunda memblokir pengiriman ulang dan kembali', (
+  testWidgets('ketukan ganda dan kembali diblokir selama pengiriman', (
     tester,
   ) async {
     await start(tester);
-    await tester.tap(find.byKey(const Key('deletion-consent')));
-    await tester.pumpAndSettle();
+    await password(tester, 'valid123');
+    await consent(tester);
     auth.deletionPending = Completer<void>();
-    await tap(tester, 'Kirim Permintaan Hapus Akun');
-    await tester.tap(find.text('Ya, Kirim Permintaan'));
+    await tap(tester, 'Hapus Akun Permanen');
+    final confirm = find.text('Ya, Hapus Permanen');
+    await tester.tap(confirm);
+    await tester.tap(confirm, warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(find.text('Mengirim...'), findsOneWidget);
     expect(
       tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
       isNull,
     );
-    final navigator = tester.state<NavigatorState>(
-      find.byType(Navigator).first,
-    );
-    await navigator.maybePop();
+    await tester.state<NavigatorState>(find.byType(Navigator).first).maybePop();
     await tester.pumpAndSettle();
     expect(find.byType(AccountDeletionScreen), findsOneWidget);
     expect(auth.deletionCalls, 1);
     auth.deletionPending!.complete();
     await tester.pumpAndSettle();
-    expect(find.textContaining('Nomor permintaan:'), findsOneWidget);
+    await tap(tester, 'Kembali ke Login');
+    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
-  testWidgets('permintaan yang sudah tercatat dimuat tanpa mengirim ulang', (
+  testWidgets('pending lama bisa diotorisasi, processing tidak dikirim ulang', (
     tester,
   ) async {
     auth.deletionRequest = AccountDeletionRequest(
@@ -122,15 +196,30 @@ void main() {
     );
     await start(tester);
     expect(find.text('Nomor permintaan: saved-request'), findsOneWidget);
-    expect(find.byType(CheckboxListTile), findsNothing);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('deletion-consent')),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.byType(CheckboxListTile), findsOneWidget);
+    await password(tester, 'valid123');
+    await consent(tester);
+    await tap(tester, 'Hapus Akun Permanen');
+    await tap(tester, 'Ya, Hapus Permanen');
+    expect(auth.deletionCalls, 1);
+    expect(auth.deletionRequest!.id, 'saved-request');
+    await tap(tester, 'Kembali ke Login');
     auth.deletionRequest = AccountDeletionRequest(
       id: 'saved-request',
       status: 'processing',
       requestedAt: DateTime.utc(2026, 11, 20),
     );
+    await start(tester);
+    expect(find.text('Penghapusan sedang diproses otomatis.'), findsOneWidget);
+    expect(find.byType(CheckboxListTile), findsNothing);
+    expect(find.byKey(const Key('deletion-password')), findsNothing);
     await tap(tester, 'Perbarui Status');
-    expect(find.text('Penghapusan sedang diproses.'), findsOneWidget);
-    expect(auth.deletionCalls, 0);
+    expect(auth.deletionCalls, 1);
     expect(tester.takeException(), isNull);
   });
 

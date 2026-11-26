@@ -36,6 +36,8 @@ def check(path, payload=None):
 
 health, _ = check('/auth/v1/health')
 print('Auth health:', health)
+if health != 200:
+    raise SystemExit('Supabase belum terhubung. Periksa koneksi, Project URL, dan apakah project sedang paused sebelum memeriksa SQL/Auth.')
 ready = health == 200
 status, settings = check('/auth/v1/settings')
 signup = status == 200 and settings.get('disable_signup') is False
@@ -66,6 +68,11 @@ operator_checks = {
     'preview_account_deletion': {'p_request_id': empty_id},
     'prepare_account_deletion': {'p_request_id': empty_id, 'p_confirm': False},
     'complete_account_deletion': {'p_request_id': empty_id},
+    'authorize_automatic_account_deletion': {'p_user_id': empty_id, 'p_confirm': False},
+    'claim_automatic_account_deletions': {'p_limit': 1, 'p_request_id': empty_id},
+    'prepare_automatic_account_deletion': {'p_request_id': empty_id, 'p_lease_id': empty_id},
+    'complete_automatic_account_deletion': {'p_request_id': empty_id, 'p_lease_id': empty_id},
+    'retry_automatic_account_deletion': {'p_request_id': empty_id, 'p_lease_id': empty_id},
 }
 for function, payload in operator_checks.items():
     status, body = check('/rest/v1/rpc/' + function, payload)
@@ -78,6 +85,11 @@ status, _ = check('/functions/v1/manage-cashier', {})
 edge_ready = status == 401
 print('manage-cashier:', 'tersedia dan meminta login' if edge_ready else f'belum terverifikasi (HTTP {status})')
 ready = ready and edge_ready
+for function in ('delete-account', 'process-account-deletions'):
+    status, _ = check('/functions/v1/' + function, {})
+    secured = status == 401
+    print(function + ':', 'tersedia dan menolak akses tanpa otorisasi' if secured else f'belum aktif / belum terverifikasi (HTTP {status})')
+    ready = ready and secured
 if not ready:
-    raise SystemExit('Backend belum lolos preflight. Aktifkan signup tanpa Confirm Email, jalankan supabase/migrations berurutan di SQL Editor, dan deploy manage-cashier dengan Verify JWT nonaktif.')
+    raise SystemExit('Backend belum lolos preflight. Periksa Auth, migrasi lanjutan, deployment Edge Function, secret worker, dan SQL aktivasi otomatis. Jangan mengulang migrasi dasar pada database lama.')
 print('Preflight lulus. Login pengguna dan alur penjualan tetap perlu uji penerimaan.')
